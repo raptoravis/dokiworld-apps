@@ -1,4 +1,4 @@
-// ../../dokiworld.git/packages/app-sdk/src/index.js
+// node_modules/@dokiworld/app-sdk/src/index.js
 var APP_PROTOCOL = "dokiworld.app";
 var APP_PROTOCOL_VERSION = 2;
 var MAX_ID_LENGTH = 200;
@@ -524,7 +524,7 @@ function createAppHost({
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/episode.js
+// node_modules/@dokiworld/app-sdk/src/episode.js
 var CLIENT_WIRE_TYPES = Object.freeze({
   "episode.start": "dokiworld-app-episode-start",
   "episode.restart": "dokiworld-app-episode-restart",

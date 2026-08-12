@@ -1,6 +1,6 @@
 # dokiworld-apps
 
-DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用 `@dokiworld/app-sdk`，并使用 esbuild 将 SDK 与 App 源码打包成可部署的静态产物。Storyteller 已使用公开 npm 包，开发和构建它不需要访问私有 DokiWorld 仓库，也不依赖仓库之间的相对目录位置。
+DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用公共 npm 包 `@dokiworld/app-sdk`，并使用 esbuild 将 SDK 与 App 源码打包成可部署的静态产物。默认开发和构建不需要访问私有 DokiWorld 仓库，也不依赖仓库之间的相对目录位置。
 
 当前统一使用 `dokiworld.app/2` 协议。SDK 负责 iframe App 与 DokiWorld Host 之间的身份校验、初始化确认、消息关联、重试、退出协商以及类型化 capability 通信；外部 App 不直接访问 DokiWorld 的令牌或内部 HTTP 接口。
 
@@ -8,8 +8,8 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用 `
 
 | 目录 | 版本 | 类型 | SDK 集成 |
 |---|---:|---|---|
-| `game-match3` | `1.0.0` | Game App | 使用 `createAppClient` 接收初始化数据并提交结构化游戏结果 |
-| `banquet-contract` | `1.0.2` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
+| `game-match3` | `1.0.1` | Game App | 使用 `createAppClient` 接收初始化数据并提交结构化游戏结果 |
+| `banquet-contract` | `1.0.3` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
 | `storyteller` | `1.1.2` | World App | 使用 Episode、Dialogue 及 SDK 2.0 的 P0/P1 capabilities 渲染互动剧集 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
@@ -22,7 +22,7 @@ SDK 已发布到公共 npm registry：
 @dokiworld/app-sdk
 ```
 
-Storyteller 通过以下依赖引用它：
+Storyteller、Banquet Contract 和 Heartline Match 均通过以下依赖引用它：
 
 ```json
 {

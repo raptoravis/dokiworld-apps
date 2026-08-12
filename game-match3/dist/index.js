@@ -147,7 +147,7 @@ function unchangedMove(state2) {
   return { state: state2, valid: false, cascades: 0, scoreGained: 0, cleared: 0, steps: [] };
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/index.js
+// node_modules/@dokiworld/app-sdk/src/index.js
 var APP_PROTOCOL = "dokiworld.app";
 var APP_PROTOCOL_VERSION = 2;
 var MAX_ID_LENGTH = 200;
