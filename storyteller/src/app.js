@@ -1,7 +1,6 @@
 import { createAppClient } from "@dokiworld/app-sdk";
 import {
   createEpisodeClientExtension,
-  resolveEpisodeGameResult,
 } from "@dokiworld/app-sdk/episode";
 import { parseGameResult } from "@dokiworld/app-sdk/game-result";
 import { createDialogueClientExtension } from "@dokiworld/app-sdk/dialogue";
@@ -12,6 +11,7 @@ import { createCharacterClientExtension } from "@dokiworld/app-sdk/character";
 import { createPersonaClientExtension } from "@dokiworld/app-sdk/persona";
 import { createAppsClientExtension } from "@dokiworld/app-sdk/apps";
 import { createGameOptions } from "./game-options.js";
+import { resolveConfiguredGameResult } from "./episode-game-result.js";
 
 const WORLD_ID = "storyteller";
 const APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1_000;
@@ -1181,10 +1181,11 @@ function completeLocalConfiguredApp(output = null) {
   localActionBeat = null;
   closeConfiguredApp(false);
   if (isRecord(output)) {
-    const resolution = resolveEpisodeGameResult(
+    const inferredTarget = nextConfiguredBeat(beat);
+    const resolution = resolveConfiguredGameResult(
       output,
-      Array.isArray(beat?.action?.resultRoutes) ? beat.action.resultRoutes : [],
-      typeof beat?.nextBeatId === "string" ? beat.nextBeatId : null,
+      beat,
+      inferredTarget?.id ?? null,
     );
     if (!resolution) {
       showError(copy.appResultInvalid);

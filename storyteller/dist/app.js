@@ -844,6 +844,15 @@ function createGameOptions(config) {
   }).filter(([, value]) => value !== void 0 && value !== null));
 }
 
+// src/episode-game-result.js
+function resolveConfiguredGameResult(output, beat, fallbackNextBeatId = null) {
+  return resolveEpisodeGameResult(
+    output,
+    Array.isArray(beat?.action?.resultRoutes) ? beat.action.resultRoutes : [],
+    fallbackNextBeatId
+  );
+}
+
 // src/app.js
 var WORLD_ID = "storyteller";
 var APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1e3;
@@ -1922,10 +1931,11 @@ function completeLocalConfiguredApp(output = null) {
   localActionBeat = null;
   closeConfiguredApp(false);
   if (isRecord12(output)) {
-    const resolution = resolveEpisodeGameResult(
+    const inferredTarget = nextConfiguredBeat(beat);
+    const resolution = resolveConfiguredGameResult(
       output,
-      Array.isArray(beat?.action?.resultRoutes) ? beat.action.resultRoutes : [],
-      typeof beat?.nextBeatId === "string" ? beat.nextBeatId : null
+      beat,
+      inferredTarget?.id ?? null
     );
     if (!resolution) {
       showError(copy.appResultInvalid);
