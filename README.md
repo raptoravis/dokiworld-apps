@@ -1,4 +1,4 @@
-# dokiworld-ext
+# dokiworld-apps
 
 DokiWorld 的外部 App 集合。每个 App 通过本地 `file:` 依赖引用 `@dokiworld/app-sdk`（位于 `../../dokiworld.git/packages/app-sdk`），用 esbuild 将其打包为静态产物。
 
