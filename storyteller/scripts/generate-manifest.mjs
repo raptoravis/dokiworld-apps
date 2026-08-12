@@ -50,13 +50,6 @@ const manifest = {
       description: "用于演绎互动剧集的电影式播放器，支持对话、媒体、选择与应用拉起。",
     },
   },
-  selection: {
-    tags: ["interactive-story", "episode", "dialogue", "media"],
-    promptHint: {
-      en: "Use this app to present a World card's configured interactive episodes.",
-      "zh-cn": "使用此应用演绎世界卡中配置的互动剧集。",
-    },
-  },
 };
 
 function validate(target, src = srcDir) {

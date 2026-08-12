@@ -1,10 +1,9 @@
+import { createAppClient } from "@dokiworld/app-sdk";
 import {
-  createAppClient,
-  createAppHost,
-  createLegacyGameInitMessage,
-  parseLegacyAppMessage,
-} from "@dokiworld/app-sdk";
-import { createEpisodeClientExtension } from "@dokiworld/app-sdk/episode";
+  createEpisodeClientExtension,
+  resolveEpisodeGameResult,
+} from "@dokiworld/app-sdk/episode";
+import { parseGameResult } from "@dokiworld/app-sdk/game-result";
 import { createDialogueClientExtension } from "@dokiworld/app-sdk/dialogue";
 import { createMediaClientExtension } from "@dokiworld/app-sdk/media";
 import { createSpeechClientExtension } from "@dokiworld/app-sdk/speech";
@@ -15,6 +14,7 @@ import { createAppsClientExtension } from "@dokiworld/app-sdk/apps";
 import { createGameOptions } from "./game-options.js";
 
 const WORLD_ID = "storyteller";
+const APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1_000;
 
 const COPY = {
   en: {
@@ -40,6 +40,7 @@ const COPY = {
     kicker: "Interactive episode",
     interactiveStory: "Interactive story",
     appUnavailable: "The configured app is unavailable.",
+    appResultInvalid: "The app finished without a valid game result.",
     characterLabel: "Character",
     chatPlaceholder: "Write a message…",
     composerHint: "Enter to send · Shift + Enter for a new line",
@@ -110,6 +111,7 @@ const COPY = {
     kicker: "互动剧集",
     interactiveStory: "互动故事",
     appUnavailable: "配置的应用当前不可用。",
+    appResultInvalid: "应用已结束，但没有返回有效的游戏结算。",
     characterLabel: "角色",
     chatPlaceholder: "写下你想说的话…",
     composerHint: "Enter 发送 · Shift + Enter 换行",
@@ -237,7 +239,7 @@ const speech = createSpeechClientExtension(dokiworld);
 const storage = createStorageClientExtension(dokiworld);
 const character = createCharacterClientExtension(dokiworld);
 const persona = createPersonaClientExtension(dokiworld);
-const apps = createAppsClientExtension(dokiworld);
+const apps = createAppsClientExtension(dokiworld, { timeoutMs: APP_LAUNCH_TIMEOUT_MS });
 let locale = "en";
 let copy = COPY.en;
 let experience = null;
@@ -263,7 +265,6 @@ let activeImage = null;
 let videoWatchdog = null;
 let dialogueSessionId = null;
 let speechAudio = null;
-let platformAppIds = new Set();
 
 const VIDEO_LOAD_TIMEOUT_MS = 20_000;
 const VIDEO_PLAYBACK_GRACE_MS = 10_000;
@@ -974,25 +975,10 @@ async function findConfiguredApp(gameId) {
   const app = appCatalog.find((entry) => (
     isRecord(entry)
     && entry.id === gameId
-    && entry.status !== "disabled"
-    && (entry.protocolVersion === 1 || entry.protocolVersion === 2)
+    && entry.protocolVersion === 2
   ));
-  if (!app || (!platformAppIds.has(gameId) && !safeUrl(app.entryUrl))) throw new Error("app unavailable");
+  if (!app) throw new Error("app unavailable");
   return app;
-}
-
-function createGameContext() {
-  const character = {
-    id: experience?.characterId || "",
-    displayName: experience?.title || "",
-  };
-  const portraitUrl = safeUrl(experience?.portraitUrl);
-  if (portraitUrl) character.avatar = { url: portraitUrl, alt: experience?.title || "" };
-  if (experience?.description) character.card = { description: experience.description, tags: [] };
-  return {
-    context: { schemaVersion: 1, character },
-    grantedScopes: ["character.identity", "character.avatar", "character.card"],
-  };
 }
 
 async function openConfiguredApp(config) {
@@ -1007,42 +993,31 @@ async function openConfiguredApp(config) {
     hostedResultPending = false;
     elements.shell.dataset.phase = "app";
     const app = await findConfiguredApp(gameId);
-    if (platformAppIds.has(gameId)) {
-      const runtime = isRecord(app.runtime) ? app.runtime : {};
-      const launch = await apps.launch({
-        appId: gameId,
-        input: {
-          contract: runtime.input?.contract || "doki.game.match3-input",
-          version: runtime.input?.version || 1,
-          data: { options: createGameOptions(config) },
-        },
-      });
-      if (launch.status === "completed" && isRecord(launch.output?.data)) {
-        const current = { app, config, runId: "platform", host: null };
-        settleActiveGameResult(current, launch.output.data);
-      } else if (localActionBeat) {
-        completeLocalConfiguredApp();
-      } else {
-        renderNext();
-      }
-      return;
+    const runtime = isRecord(app.runtime) ? app.runtime : {};
+    const launch = await apps.launch({
+      appId: gameId,
+      input: {
+        contract: runtime.input?.contract || "doki.game.match3-input",
+        version: runtime.input?.version || 1,
+        data: { options: createGameOptions(config) },
+      },
+    });
+    if (launch.status === "completed" && parseGameResult(launch.output)) {
+      settleActiveGameResult({ config }, launch.output);
+    } else if (launch.status === "cancelled" && localActionBeat) {
+      completeLocalConfiguredApp();
+    } else if (launch.status === "cancelled") {
+      renderNext();
+    } else {
+      showError(copy.appResultInvalid);
     }
-    const runId = `${dokiworld.runId}:${Date.now().toString(36)}`;
-    activeApp = { app, config, runId, host: null };
-    elements.appTitle.textContent = typeof config.title === "string" && config.title.trim()
-      ? config.title
-      : app.locales?.[locale]?.name || app.locales?.en?.name || gameId;
-    elements.appFrame.title = elements.appTitle.textContent;
-    elements.appLoading.classList.remove("is-hidden");
-    elements.appFrame.src = app.entryUrl;
-    elements.appDialog.showModal();
   } catch {
     activeApp = null;
     showError(copy.appUnavailable);
   }
 }
 
-function renderGameResult(result, configuredBeat, config, onContinue = null) {
+function renderGameResult(result, nextBeatId, config, onContinue = null) {
   showDialogueHistory();
   const card = document.createElement("article");
   card.className = "game-result-panel";
@@ -1083,7 +1058,7 @@ function renderGameResult(result, configuredBeat, config, onContinue = null) {
   });
   card.append(kicker, title, summary);
   if (metricList.childElementCount > 0) card.append(metricList);
-  const target = nextConfiguredBeat(configuredBeat);
+  const target = typeof nextBeatId === "string" ? beatsById.get(nextBeatId) || null : null;
   if (target || typeof onContinue === "function") {
     const next = document.createElement("button");
     next.className = "game-result-continue";
@@ -1171,112 +1146,28 @@ function preserveCompletedImage(item) {
   elements.lines.append(group);
 }
 
-function settleActiveGameResult(current, result) {
+function settleActiveGameResult(current, output) {
+  const result = parseGameResult(output);
+  if (!result) {
+    showError(copy.appResultInvalid);
+    return;
+  }
   if (localActionBeat) {
-    window.queueMicrotask(() => completeLocalConfiguredApp(result));
+    window.queueMicrotask(() => completeLocalConfiguredApp(output));
     return;
   }
   const config = current.config;
   hostedResultPending = true;
   post({
-    type: "episode.gameResult",
+    type: "episode.gameCompleted",
     configId: current.config.configId,
-    result,
+    output,
   });
   closeConfiguredApp(false);
   renderGameResult(result, null, config);
 }
 
-function initializeLegacyActiveGame(current, target, context, grantedScopes) {
-  const sendInit = () => target.postMessage(createLegacyGameInitMessage({
-    gameId: current.app.id,
-    runId: current.runId,
-    locale,
-    grantedScopes,
-    context,
-  }), "*");
-  const handleMessage = (event) => {
-    if (event.source !== target || event.origin !== "null") return;
-    const message = parseLegacyAppMessage(event.data, {
-      kind: "game",
-      appId: current.app.id,
-      runId: current.runId,
-    });
-    if (!message) return;
-    if (message.type === "dokiworld-game-ready") {
-      sendInit();
-      return;
-    }
-    if (message.type === "dokiworld-game-initialized") {
-      elements.appLoading.classList.add("is-hidden");
-      return;
-    }
-    if (message.type === "dokiworld-game-close") {
-      if (localActionBeat) completeLocalConfiguredApp();
-      else closeConfiguredApp(true);
-      return;
-    }
-    if (message.type === "dokiworld-game-result" && isRecord(message.result)) {
-      settleActiveGameResult(current, message.result);
-    }
-  };
-  window.addEventListener("message", handleMessage);
-  current.host = {
-    dispose: () => window.removeEventListener("message", handleMessage),
-  };
-  sendInit();
-}
-
-function initializeActiveGame() {
-  if (!activeApp || activeApp.host) return;
-  const { context, grantedScopes } = createGameContext();
-  const target = elements.appFrame.contentWindow;
-  if (!target) return;
-  const current = activeApp;
-  if (current.app.protocolVersion === 1) {
-    initializeLegacyActiveGame(current, target, context, grantedScopes);
-    return;
-  }
-  const runtime = isRecord(current.app.runtime) ? current.app.runtime : {};
-  current.host = createAppHost({
-    appId: current.app.id,
-    runId: activeApp.runId,
-    target,
-    targetOrigin: "*",
-    expectedOrigin: "null",
-    extensions: Array.isArray(runtime.extensions)
-      ? runtime.extensions
-      : ["resize", "progress", "checkpoint"],
-    init: {
-      locale,
-      grantedScopes,
-      context,
-      input: {
-        contract: runtime.input?.contract || "doki.game.match3-input",
-        version: runtime.input?.version || 1,
-        data: { options: createGameOptions(current.config) },
-      },
-    },
-    outputs: Array.isArray(runtime.outputs) && runtime.outputs.length > 0
-      ? runtime.outputs
-      : [{ contract: "doki.game.result", version: 1 }],
-  });
-  current.host.connect({
-    onInitialized: () => elements.appLoading.classList.add("is-hidden"),
-    onRequestExit: () => {
-      if (localActionBeat) completeLocalConfiguredApp();
-      else closeConfiguredApp(true);
-    },
-    onComplete: async (output) => {
-      if (!isRecord(output.data)) return { status: "rejected", reason: "invalid_result" };
-      settleActiveGameResult(current, output.data);
-      return { status: "accepted" };
-    },
-  });
-}
-
 function closeConfiguredApp(resume = true) {
-  activeApp?.host?.dispose();
   if (elements.appDialog.open) elements.appDialog.close();
   elements.appFrame.removeAttribute("src");
   activeApp = null;
@@ -1284,13 +1175,22 @@ function closeConfiguredApp(resume = true) {
   if (resume) renderNext();
 }
 
-function completeLocalConfiguredApp(result = null) {
+function completeLocalConfiguredApp(output = null) {
   const beat = localActionBeat;
   const config = activeApp?.config || pendingAction?.gameConfig || {};
   localActionBeat = null;
   closeConfiguredApp(false);
-  if (isRecord(result)) {
-    renderGameResult(result, beat, config);
+  if (isRecord(output)) {
+    const resolution = resolveEpisodeGameResult(
+      output,
+      Array.isArray(beat?.action?.resultRoutes) ? beat.action.resultRoutes : [],
+      typeof beat?.nextBeatId === "string" ? beat.nextBeatId : null,
+    );
+    if (!resolution) {
+      showError(copy.appResultInvalid);
+      return;
+    }
+    renderGameResult(resolution.result, resolution.nextBeatId, config);
     return;
   }
   const target = nextConfiguredBeat(beat);
@@ -1419,7 +1319,7 @@ function initialize(message) {
   locale = String(message.locale).toLowerCase().startsWith("zh") ? "zh-cn" : "en";
   copy = COPY[locale];
   dialogueSessionId = null;
-  appCatalog = Array.isArray(message.apps) ? message.apps.filter(isRecord) : [];
+  appCatalog = [];
   const candidate = isRecord(message.experience) ? message.experience : {};
   experience = {
     characterId: typeof candidate.characterId === "string" ? candidate.characterId : "",
@@ -1438,6 +1338,11 @@ function initialize(message) {
   assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   linkedBeatIds = new Set(beats.flatMap((beat) => [
     ...(typeof beat.nextBeatId === "string" ? [beat.nextBeatId] : []),
+    ...(Array.isArray(beat.action?.resultRoutes)
+      ? beat.action.resultRoutes.flatMap((route) => (
+          typeof route?.nextBeatId === "string" ? [route.nextBeatId] : []
+        ))
+      : []),
     ...(Array.isArray(beat.choices?.options)
       ? beat.choices.options.flatMap((option) => (
           typeof option?.nextBeatId === "string" ? [option.nextBeatId] : []
@@ -1635,8 +1540,6 @@ elements.appDialog.addEventListener("cancel", (event) => {
   if (localActionBeat) completeLocalConfiguredApp();
   else closeConfiguredApp(true);
 });
-elements.appFrame.addEventListener("load", initializeActiveGame);
-
 dokiworld.connect({
   onInit: async ({ locale: nextLocale, input }) => {
     const data = isRecord(input.data) ? input.data : {};
@@ -1677,16 +1580,13 @@ dokiworld.connect({
       elements.personaOpen.querySelector("span:last-child").textContent = playerPersona?.name || copy.chooseRole;
     }
     if (appsResult.status === "fulfilled") {
-      platformAppIds = new Set(appsResult.value.apps.map((app) => app.id));
-      const legacyApps = appCatalog.filter((app) => app.protocolVersion === 1);
-      appCatalog = [...legacyApps, ...appsResult.value.apps.map((app) => ({
+      appCatalog = appsResult.value.apps.map((app) => ({
         ...app,
-        status: "active",
         locales: {
           en: { name: app.name, description: app.description || "" },
           "zh-cn": { name: app.name, description: app.description || "" },
         },
-      }))];
+      }));
     }
   },
   onMessage: (envelope) => {

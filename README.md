@@ -8,9 +8,9 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用�
 
 | 目录 | 版本 | 类型 | SDK 集成 |
 |---|---:|---|---|
-| `game-match3` | `1.0.1` | Game App | 使用 `createAppClient` 接收初始化数据并提交结构化游戏结果 |
-| `banquet-contract` | `1.0.3` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.2` | World App | 使用 Episode、Dialogue 及 SDK 2.0 的 P0/P1 capabilities 渲染互动剧集 |
+| `game-match3` | `1.0.4` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
+| `banquet-contract` | `1.0.4` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
+| `storyteller` | `1.1.6` | World App | 使用 Episode、Dialogue 及 SDK 2.1 capabilities 渲染互动剧集和消费 Game 结算 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
 
@@ -27,7 +27,7 @@ Storyteller、Banquet Contract 和 Heartline Match 均通过以下依赖引用�
 ```json
 {
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.0.0"
+    "@dokiworld/app-sdk": "^2.1.0"
   }
 }
 ```
@@ -58,7 +58,7 @@ npm run build
 本地 `file:` 形式要求三个仓库保持当前相邻目录结构，仅适用于本地联调。完成联调后，用下面的命令恢复公共 npm 包并刷新 lockfile：
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.0.0" --save
+npm install "@dokiworld/app-sdk@^2.1.0" --save
 ```
 
 提交和发布 App 时默认应保留公共 semver 依赖；不要提交指向开发者本机目录结构的 `file:` lockfile。
@@ -81,9 +81,9 @@ Storyteller 使用 `@dokiworld/app-sdk/dialogue`，不再直接依赖 DokiWorld 
 
 SDK 负责请求 ID、并发响应关联、运行时校验、超时和稳定错误码；认证及后端访问保留在 DokiWorld Host 内。
 
-### SDK 2.0 P0/P1 capabilities
+### SDK 2.1 capabilities
 
-Storyteller `1.1.2` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
+Storyteller `1.1.6` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
 
 | 扩展名 | SDK 入口 | Storyteller 中的用途 |
 |---|---|---|
@@ -170,7 +170,7 @@ Game 与 World 都使用 `dokiworld.app/2`，但 catalog 当前接受的 manifes
 | input contract | 例如 `doki.game.<id>-input` | 例如 `doki.world.<id>-input` |
 | output contract | 通常为 `doki.game.result` 或专用结果 | 通常为 `doki.world.session-result` |
 | context scopes | `context.requiredScopes` / `optionalScopes` | `contextScopes.required` / `optional` |
-| catalog 注册 | 还需在 DokiWorld 的 `frontend/config/external-apps.json` 注册 | 本地同步后由 World catalog 自动发现 |
+| catalog 注册 | 无需额外注册文件，由 Game manifest 自动发现 | 本地同步后由 World catalog 自动发现 |
 
 两类 App 的 `runtime` 都必须声明：
 
@@ -217,18 +217,17 @@ Game 至少应提交符合 output contract 的结构化结果。World 应提交 
 
 只申请实际使用的 scope。需要角色身份、头像、角色卡或玩家角色卡时，在对应的 required/optional scope 中声明，并确认 Host 允许该 scope；App 必须能处理 optional scope 未授权或 capability 不可用的情况。
 
-manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description`。英文是规范产品语言，新增用户可见文案必须在同一变更中提供简体中文翻译。Game 的别名及 DokiWorld 注册中的 `when`/`avoid` 也必须同时维护两种语言。
+manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description`。英文是规范产品语言，新增用户可见文案必须在同一变更中提供简体中文翻译。Game 的别名、`selection.promptHint` 以及可选的 `selection.avoidHint` 也必须同时维护两种语言；World 不应声明 `selection`。
 
-### 5. 为 Game 增加 DokiWorld 注册
+### 5. 完成自包含 Game manifest
 
-新的 schema v2 Game 只有 supplier manifest 还不够。还需在 DokiWorld 主仓库的 `frontend/config/external-apps.json` 增加同 ID 的注册项，声明：
+新的 schema v2 Game 不需要额外的平台注册文件。manifest 自身应完整声明：
 
-- `status`；
-- Host 批准的 `allowedScopes`；
-- `selection.activationPolicy`；
-- 英文和简体中文的 `when` / `avoid` 选择提示。
+- `status`，值为 `active`、`deprecated` 或 `disabled`；
+- 实际使用的 required/optional context scopes；
+- `selection`，其中双语 `promptHint` 必填。
 
-supplier manifest 不应重复定义由 DokiWorld 管理的 `status` 或 `selection`。manifest 中的 required scope 必须包含在注册项的 `allowedScopes` 中，否则 Game catalog 生成会失败。World catalog 当前不使用这份 Game 注册表。
+`selection` 还可包含 `avoidHint`、`activationPolicy`、tags、intents 和 examples。context scope 必须属于 Host 支持的公开 scope，否则 Game catalog 生成会失败。World manifest 会拒绝 `selection`。
 
 ### 6. 构建与测试
 

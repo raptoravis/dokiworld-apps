@@ -14,21 +14,12 @@ test("nested App host omits absent optional values from its v2 input", () => {
   });
 });
 
-test("opaque Storyteller sandbox receives the App catalog from its host", async () => {
+test("Storyteller only launches platform v2 Apps through the SDK", async () => {
   const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /fetch\(["']\/games\/catalog\.json/);
-  assert.match(source, /appCatalog = Array\.isArray\(message\.apps\)/);
-  assert.match(source, /targetOrigin: "\*"/);
-  assert.match(source, /expectedOrigin: "null"/);
-  assert.match(source, /event\.origin !== "null"/);
-});
-
-test("configured legacy Apps retain their v1 launch and result bridge", async () => {
-  const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
-  assert.match(source, /entry\.protocolVersion === 1/);
-  assert.match(source, /createLegacyGameInitMessage/);
-  assert.match(source, /parseLegacyAppMessage/);
-  assert.match(source, /message\.type === "dokiworld-game-result"/);
+  assert.match(source, /entry\.protocolVersion === 2/);
+  assert.match(source, /apps\.launch/);
+  assert.doesNotMatch(source, /createLegacyGameInitMessage|parseLegacyAppMessage|createAppHost/);
 });
 
 test("Storyteller business code uses the typed SDK extension instead of wire messages", async () => {
@@ -50,11 +41,17 @@ test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
   for (const capability of ["media", "speech", "storage", "character", "persona", "apps"]) {
     assert.ok(manifest.runtime.extensions.includes(capability), `missing ${capability}`);
     assert.match(source, new RegExp(`@dokiworld/app-sdk/${capability}`), `missing ${capability} SDK import`);
-    assert.match(source, new RegExp(`const ${capability} = create[A-Z][A-Za-z]+ClientExtension\\(dokiworld\\)`), `missing ${capability} adapter`);
+    assert.match(source, new RegExp(`const ${capability} = create[A-Z][A-Za-z]+ClientExtension\\(dokiworld(?:,\\s*\\{[^}]*\\})?\\)`), `missing ${capability} adapter`);
   }
   for (const call of ["media.generateImage", "media.generateVideo", "speech.synthesize", "storage.loadCheckpoint", "character.getCurrent", "persona.requestSelection", "apps.list", "apps.launch"]) {
     assert.ok(source.includes(call), `missing ${call} use`);
   }
+  assert.match(source, /const APP_LAUNCH_TIMEOUT_MS = 60 \* 60 \* 1_000/);
+  assert.match(source, /createAppsClientExtension\(dokiworld, \{ timeoutMs: APP_LAUNCH_TIMEOUT_MS \}\)/);
+  assert.match(source, /parseGameResult\(launch\.output\)/);
+  assert.match(source, /resolveEpisodeGameResult/);
+  assert.match(source, /type:\s*"episode\.gameCompleted"/);
+  assert.doesNotMatch(source, /type:\s*"episode\.gameResult"/);
   assert.doesNotMatch(source, /type:\s*"chat\.generateMedia"/);
   assert.ok(manifest.contextScopes.optional.includes("character.card"));
   assert.ok(manifest.contextScopes.optional.includes("player_persona"));

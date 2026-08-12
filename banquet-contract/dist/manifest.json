@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "id": "banquet-contract",
   "kind": "world",
   "status": "active",
@@ -41,18 +41,6 @@
     "zh-cn": {
       "name": "Banquet Contract",
       "description": "一场电影式互动恋爱：一次认错身份的清晨，一个危险的陌生人，以及无法长久掩埋的秘密。"
-    }
-  },
-  "selection": {
-    "tags": [
-      "romance",
-      "interactive-story",
-      "banquet",
-      "contract"
-    ],
-    "promptHint": {
-      "en": "Open when the player wants to enter the Banquet Contract interactive World.",
-      "zh-cn": "玩家希望进入 Banquet Contract 互动世界时打开。"
     }
   }
 }

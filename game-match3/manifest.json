@@ -1,8 +1,9 @@
 {
   "schemaVersion": 2,
-  "version": "1.0.1",
+  "version": "1.0.4",
   "id": "game-match3",
   "kind": "game",
+  "status": "active",
   "capability": "game.puzzle.match-three",
   "entry": "index.html",
   "launchRequirements": {
@@ -30,6 +31,17 @@
         "心意连线",
         "玩三消"
       ]
+    }
+  },
+  "selection": {
+    "activationPolicy": "explicit-or-contextual",
+    "promptHint": {
+      "en": "Use for an explicit match-three request or a short reflex challenge.",
+      "zh-cn": "玩家明确要玩三消，或剧情确实需要短时反应挑战时使用。"
+    },
+    "avoidHint": {
+      "en": "Do not infer the game from ordinary mentions of matching three clues.",
+      "zh-cn": "普通叙事中提到对应三条线索时不要误拉起。"
     }
   },
   "runtime": {

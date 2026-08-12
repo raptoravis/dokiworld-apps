@@ -5,6 +5,7 @@ import {
   createSeededRandom,
 } from "./engine.js";
 import { createAppClient } from "@dokiworld/app-sdk";
+import { createGameResult } from "@dokiworld/app-sdk/game-result";
 
 const GAME_ID = "game-match3";
 const MAX_SCORE = 100;
@@ -629,13 +630,21 @@ async function finish() {
   elements.celebration.hidden = false;
   scatterCelebration();
   await sleep(1250);
-  await dokiworld.complete({
-    contract: "doki.game.result",
-    version: 1,
-    data: {
-      normalizedScore: normalized,
-      outcome: "completed",
-      metrics: { points: displayedPoints, cleared: state.cleared, moves: state.movesUsed, bestCascade: state.bestCascade },
+  await dokiworld.complete(createCurrentResult(normalized >= MAX_SCORE ? "win" : "loss"));
+}
+
+function createCurrentResult(outcome = "exited") {
+  const displayedPoints = config.presentation === "banquet-contract"
+    ? banquetPoints(state.score)
+    : state.score;
+  return createGameResult({
+    normalizedScore: normalizedScore(state.score),
+    outcome,
+    metrics: {
+      points: displayedPoints,
+      cleared: state.cleared,
+      moves: state.movesUsed,
+      bestCascade: state.bestCascade,
     },
   });
 }
@@ -711,4 +720,9 @@ dokiworld.connect({
   configure(input.data?.options);
   start();
   },
+  onPrepareExit: () => ({
+    isDirty: false,
+    canSuspend: false,
+    output: createCurrentResult("exited"),
+  }),
 });

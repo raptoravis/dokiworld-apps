@@ -361,7 +361,15 @@ function createAppClient({
     if (message.type === "dokiworld-app-prepare-exit") {
       try {
         const state2 = await handlers.onPrepareExit?.(message.payload.reason) ?? { isDirty: false, canSuspend: false };
-        sendSession("dokiworld-app-exit-state", { isDirty: Boolean(state2.isDirty), canSuspend: Boolean(state2.canSuspend) });
+        const output = state2.output;
+        if (output !== void 0 && (!isContract(output) || !("data" in output) || !isBoundedJson(output.data))) {
+          throw new Error("Invalid app exit output");
+        }
+        sendSession("dokiworld-app-exit-state", {
+          isDirty: Boolean(state2.isDirty),
+          canSuspend: Boolean(state2.canSuspend),
+          ...output === void 0 ? {} : { output }
+        });
       } catch (error) {
         handlers.onError?.(error);
         sendSession("dokiworld-app-exit-state", { isDirty: true, canSuspend: false });
@@ -434,6 +442,62 @@ function createAppClient({
       return () => messageListeners.delete(listener);
     },
     dispose
+  });
+}
+
+// node_modules/@dokiworld/app-sdk/src/game-result.js
+var GAME_RESULT_CONTRACT = "doki.game.result";
+var GAME_RESULT_VERSION = 1;
+var GAME_SCORE_MAX = 100;
+var GAME_RESULT_OUTPUT = Object.freeze({
+  contract: GAME_RESULT_CONTRACT,
+  version: GAME_RESULT_VERSION
+});
+var MAX_METRIC_COUNT = 12;
+var MAX_METRIC_KEY_LENGTH = 48;
+var MAX_METRIC_STRING_LENGTH = 160;
+var MAX_METRIC_NUMBER = 1e12;
+var OUTCOMES = /* @__PURE__ */ new Set(["win", "loss", "draw", "completed", "exited"]);
+var isRecord2 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+function sanitizeMetrics(value) {
+  if (!isRecord2(value)) return Object.freeze({});
+  const metrics = {};
+  for (const [rawKey, rawValue] of Object.entries(value)) {
+    if (Object.keys(metrics).length >= MAX_METRIC_COUNT) break;
+    const key = rawKey.trim();
+    if (!key || key.length > MAX_METRIC_KEY_LENGTH) continue;
+    if (typeof rawValue === "boolean") metrics[key] = rawValue;
+    else if (typeof rawValue === "number" && Number.isFinite(rawValue) && Math.abs(rawValue) <= MAX_METRIC_NUMBER) metrics[key] = rawValue;
+    else if (typeof rawValue === "string") metrics[key] = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_METRIC_STRING_LENGTH);
+  }
+  return Object.freeze(metrics);
+}
+function parseData(value, strictOutcome) {
+  if (!isRecord2(value)) return null;
+  const normalizedScore2 = value.normalizedScore;
+  if (!Number.isInteger(normalizedScore2) || normalizedScore2 < 0 || normalizedScore2 > GAME_SCORE_MAX) return null;
+  const outcome = value.outcome === void 0 ? "completed" : OUTCOMES.has(value.outcome) ? value.outcome : strictOutcome ? null : "completed";
+  if (!outcome) return null;
+  return Object.freeze({
+    normalizedScore: normalizedScore2,
+    outcome,
+    metrics: sanitizeMetrics(value.metrics)
+  });
+}
+var GameResultContractError = class extends TypeError {
+  constructor(message = "Invalid doki.game.result/1 data") {
+    super(message);
+    this.name = "GameResultContractError";
+    this.code = "invalid-game-result";
+  }
+};
+function createGameResult(data) {
+  const parsed = parseData(data, true);
+  if (!parsed) throw new GameResultContractError();
+  return Object.freeze({
+    contract: GAME_RESULT_CONTRACT,
+    version: GAME_RESULT_VERSION,
+    data: parsed
   });
 }
 
@@ -1061,13 +1125,18 @@ async function finish() {
   elements.celebration.hidden = false;
   scatterCelebration();
   await sleep(1250);
-  await dokiworld.complete({
-    contract: "doki.game.result",
-    version: 1,
-    data: {
-      normalizedScore: normalized,
-      outcome: "completed",
-      metrics: { points: displayedPoints, cleared: state.cleared, moves: state.movesUsed, bestCascade: state.bestCascade }
+  await dokiworld.complete(createCurrentResult(normalized >= MAX_SCORE ? "win" : "loss"));
+}
+function createCurrentResult(outcome = "exited") {
+  const displayedPoints = config.presentation === "banquet-contract" ? banquetPoints(state.score) : state.score;
+  return createGameResult({
+    normalizedScore: normalizedScore(state.score),
+    outcome,
+    metrics: {
+      points: displayedPoints,
+      cleared: state.cleared,
+      moves: state.movesUsed,
+      bestCascade: state.bestCascade
     }
   });
 }
@@ -1138,5 +1207,10 @@ dokiworld.connect({
     copy = COPY[locale];
     configure(input.data?.options);
     start();
-  }
+  },
+  onPrepareExit: () => ({
+    isDirty: false,
+    canSuspend: false,
+    output: createCurrentResult("exited")
+  })
 });
