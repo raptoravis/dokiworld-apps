@@ -1196,7 +1196,7 @@ function initializeLegacyActiveGame(current, target, context, grantedScopes) {
     context,
   }), "*");
   const handleMessage = (event) => {
-    if (event.source !== target) return;
+    if (event.source !== target || event.origin !== "null") return;
     const message = parseLegacyAppMessage(event.data, {
       kind: "game",
       appId: current.app.id,
@@ -1243,6 +1243,7 @@ function initializeActiveGame() {
     runId: activeApp.runId,
     target,
     targetOrigin: "*",
+    expectedOrigin: "null",
     extensions: Array.isArray(runtime.extensions)
       ? runtime.extensions
       : ["resize", "progress", "checkpoint"],

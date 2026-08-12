@@ -19,6 +19,8 @@ test("opaque Storyteller sandbox receives the App catalog from its host", async 
   assert.doesNotMatch(source, /fetch\(["']\/games\/catalog\.json/);
   assert.match(source, /appCatalog = Array\.isArray\(message\.apps\)/);
   assert.match(source, /targetOrigin: "\*"/);
+  assert.match(source, /expectedOrigin: "null"/);
+  assert.match(source, /event\.origin !== "null"/);
 });
 
 test("configured legacy Apps retain their v1 launch and result bridge", async () => {

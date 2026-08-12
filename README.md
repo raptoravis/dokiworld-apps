@@ -1,6 +1,6 @@
 # dokiworld-apps
 
-DokiWorld 的外部 App 集合。每个 App 通过本地 `file:` 依赖引用 `@dokiworld/app-sdk`（位于相邻仓库 `../dokiworld.git/packages/app-sdk`），并使用 esbuild 将 SDK 与 App 源码打包成可部署的静态产物。
+DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用 `@dokiworld/app-sdk`，并使用 esbuild 将 SDK 与 App 源码打包成可部署的静态产物。Storyteller 已使用公开 npm 包，开发和构建它不需要访问私有 DokiWorld 仓库，也不依赖仓库之间的相对目录位置。
 
 当前统一使用 `dokiworld.app/2` 协议。SDK 负责 iframe App 与 DokiWorld Host 之间的身份校验、初始化确认、消息关联、重试、退出协商以及类型化 capability 通信；外部 App 不直接访问 DokiWorld 的令牌或内部 HTTP 接口。
 
@@ -9,20 +9,34 @@ DokiWorld 的外部 App 集合。每个 App 通过本地 `file:` 依赖引用 `@
 | 目录 | 版本 | 类型 | SDK 集成 |
 |---|---:|---|---|
 | `game-match3` | `1.0.0` | Game App | 使用 `createAppClient` 接收初始化数据并提交结构化游戏结果 |
-| `banquet-contract` | `1.0.1` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.1` | World App | 使用 Episode、Dialogue 及 SDK 1.2 的 P0/P1 capabilities 渲染互动剧集 |
+| `banquet-contract` | `1.0.2` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
+| `storyteller` | `1.1.2` | World App | 使用 Episode、Dialogue 及 SDK 2.0 的 P0/P1 capabilities 渲染互动剧集 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
 
 ## App SDK 集成
 
-SDK 位于相邻仓库：
+SDK 已发布到公共 npm registry：
 
 ```text
-D:\dev\dokiworld.git\packages\app-sdk
+@dokiworld/app-sdk
 ```
 
-各 App 通过以下依赖引用它：
+Storyteller 通过以下依赖引用它：
+
+```json
+{
+  "dependencies": {
+    "@dokiworld/app-sdk": "^2.0.0"
+  }
+}
+```
+
+构建后的 bundle 会内联 SDK，不要求部署环境单独安装 npm 包。
+
+### 使用相邻 DokiWorld 仓库中的 SDK
+
+只有在联合开发尚未发布的 SDK 变更时，才需要把依赖临时切换到与本仓库相邻的 `dokiworld.git`：
 
 ```json
 {
@@ -32,7 +46,22 @@ D:\dev\dokiworld.git\packages\app-sdk
 }
 ```
 
-构建后的 bundle 会内联 SDK，不要求部署环境单独安装 npm 包。
+在具体 App 目录运行 `npm install`，让 `package-lock.json` 和 `node_modules` 一起切换到本地 SDK。例如 Storyteller：
+
+```powershell
+cd D:\dev\dokiworld-apps.git\storyteller
+npm install
+npm test
+npm run build
+```
+
+本地 `file:` 形式要求三个仓库保持当前相邻目录结构，仅适用于本地联调。完成联调后，用下面的命令恢复公共 npm 包并刷新 lockfile：
+
+```powershell
+npm install "@dokiworld/app-sdk@^2.0.0" --save
+```
+
+提交和发布 App 时默认应保留公共 semver 依赖；不要提交指向开发者本机目录结构的 `file:` lockfile。
 
 ### 生命周期接口
 
@@ -52,9 +81,9 @@ Storyteller 使用 `@dokiworld/app-sdk/dialogue`，不再直接依赖 DokiWorld 
 
 SDK 负责请求 ID、并发响应关联、运行时校验、超时和稳定错误码；认证及后端访问保留在 DokiWorld Host 内。
 
-### SDK 1.2 P0/P1 capabilities
+### SDK 2.0 P0/P1 capabilities
 
-Storyteller `1.1.1` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
+Storyteller `1.1.2` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
 
 | 扩展名 | SDK 入口 | Storyteller 中的用途 |
 |---|---|---|
@@ -127,7 +156,7 @@ dokiworld-apps.git/
 - 通用 World：`storyteller`；
 - 使用 Episode、Dialogue、媒体及嵌套 App 的 World：`storyteller`。
 
-`package.json` 至少应提供 `build`、`test` 和 `generate:manifest` 脚本，并通过 `file:../../dokiworld.git/packages/app-sdk` 引用 `@dokiworld/app-sdk`。构建必须生成完整的 `dist/`，其中包含可直接加载的入口文件和 `dist/manifest.json`。
+`package.json` 至少应提供 `build`、`test` 和 `generate:manifest` 脚本，并通过公共 semver 版本引用 `@dokiworld/app-sdk`。构建必须生成完整的 `dist/`，其中包含可直接加载的入口文件和 `dist/manifest.json`。
 
 ### 2. 定义 App contract
 
@@ -262,7 +291,7 @@ npm run build --prefix storyteller
 
 构建流程会生成 manifest，并在各自的 `dist/` 中输出 HTML、CSS、JavaScript、资源和 `manifest.json`。不要手工编辑 `dist/`；应修改源码或 manifest 生成脚本后重新构建。
 
-修改 `@dokiworld/app-sdk` 后，必须重新构建受影响的 App，确保 bundle 内联的是最新 SDK 实现。若 App 的 JavaScript 或 manifest 有可部署变化，还应提升 App 版本，避免浏览器继续使用旧的带版本查询参数的资源。
+升级 `@dokiworld/app-sdk` 依赖后，必须重新安装并构建受影响的 App，确保 bundle 内联的是 lockfile 锁定的 SDK 实现。若 App 的 JavaScript 或 manifest 有可部署变化，还应提升 App 版本，避免浏览器继续使用旧的带版本查询参数的资源。
 
 ## 同步到 DokiWorld 本地开发环境
 

@@ -1,4 +1,4 @@
-// ../../dokiworld.git/packages/app-sdk/src/index.js
+// node_modules/@dokiworld/app-sdk/src/index.js
 var APP_PROTOCOL = "dokiworld.app";
 var APP_PROTOCOL_VERSION = 2;
 var LEGACY_PROTOCOL_VERSION = 1;
@@ -57,6 +57,19 @@ function postToParent(scope, message, targetOrigin) {
     return;
   }
   scope.parent.postMessage(message, targetOrigin);
+}
+function isWebOrigin(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+function isSecureHostOriginPair(targetOrigin, expectedOrigin) {
+  if (expectedOrigin === "null") return targetOrigin === "*";
+  return isWebOrigin(expectedOrigin) && targetOrigin === expectedOrigin;
 }
 function createExtensionSet(extensions) {
   if (!Array.isArray(extensions) || !extensions.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
@@ -352,13 +365,17 @@ function createAppHost({
   init,
   outputs,
   scope = window,
-  targetOrigin = "*",
+  targetOrigin,
+  expectedOrigin,
   createId = defaultId,
   extensions = [],
   initRetryMs = 500,
   exitStateTimeoutMs = 3e3
 } = {}) {
   if (!isBoundedId(appId) || !isBoundedId(runId) || !target?.postMessage) throw new Error("Invalid app host identity or target");
+  if (!isSecureHostOriginPair(targetOrigin, expectedOrigin)) {
+    throw new Error("Invalid app host target or expected origin");
+  }
   if (!isRecord(init) || typeof init.locale !== "string" || !Array.isArray(init.grantedScopes) || !init.grantedScopes.every((value) => typeof value === "string") || !isRecord(init.context) || !isRecord(init.input) || !isContract(init.input) || !("data" in init.input) || !isBoundedJson(init.input.data) || !Array.isArray(outputs) || !outputs.every(isContract)) throw new Error("Invalid app host contract");
   if (!Number.isFinite(initRetryMs) || initRetryMs <= 0 || !Number.isFinite(exitStateTimeoutMs) || exitStateTimeoutMs <= 0) throw new Error("Invalid app host retry timing");
   const extensionTypes = createExtensionSet(extensions);
@@ -397,7 +414,7 @@ function createAppHost({
     post2(ack);
   };
   const handleMessage = async (event) => {
-    if (disposed || !connected || event.source !== target) return;
+    if (disposed || !connected || event.source !== target || event.origin !== expectedOrigin) return;
     const ready = parseExternalAppReadyMessage(event.data, appId);
     if (ready) {
       if (instanceId !== ready.instanceId) {
@@ -525,7 +542,7 @@ function createAppHost({
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/episode.js
+// node_modules/@dokiworld/app-sdk/src/episode.js
 var CLIENT_WIRE_TYPES = Object.freeze({
   "episode.start": "dokiworld-app-episode-start",
   "episode.restart": "dokiworld-app-episode-restart",
@@ -615,7 +632,7 @@ function createEpisodeClientExtension(client) {
   );
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/dialogue.js
+// node_modules/@dokiworld/app-sdk/src/dialogue.js
 var REQUEST_TYPE = "dokiworld-app-dialogue-request";
 var RESPONSE_TYPE = "dokiworld-app-dialogue-response";
 var OPERATIONS = /* @__PURE__ */ new Set([
@@ -760,7 +777,7 @@ function createDialogueClientExtension(client, {
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/capability.js
+// node_modules/@dokiworld/app-sdk/src/capability.js
 var MAX_ID_LENGTH3 = 200;
 var MAX_PAYLOAD_BYTES2 = 64 * 1024;
 var MAX_PAYLOAD_DEPTH2 = 12;
@@ -861,7 +878,7 @@ function createCapabilityClient(client, definition7, { createId = defaultId3, ti
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/media.js
+// node_modules/@dokiworld/app-sdk/src/media.js
 var isRecord5 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString3 = (value) => typeof value === "string" && value.length > 0;
 var isJob = (value) => isRecord5(value) && isString3(value.id) && ["image", "video"].includes(value.mediaType) && ["pending", "processing", "done", "failed", "cancelled"].includes(value.status) && (value.urls === void 0 || Array.isArray(value.urls) && value.urls.every(isString3));
@@ -883,7 +900,7 @@ function createMediaClientExtension(client, options) {
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/speech.js
+// node_modules/@dokiworld/app-sdk/src/speech.js
 var isRecord6 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString4 = (value) => typeof value === "string" && value.length > 0;
 var definition2 = Object.freeze({ name: "speech", operations: Object.freeze({
@@ -897,7 +914,7 @@ function createSpeechClientExtension(client, options) {
   return Object.freeze({ synthesize: (input) => capability.invoke("synthesize", input), dispose: capability.dispose });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/storage.js
+// node_modules/@dokiworld/app-sdk/src/storage.js
 var isRecord7 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString5 = (value) => typeof value === "string" && value.length > 0;
 var isCheckpoint = (value) => isRecord7(value) && isString5(value.contract) && Number.isInteger(value.version) && value.version > 0 && "data" in value && isBoundedCapabilityValue(value.data);
@@ -916,7 +933,7 @@ function createStorageClientExtension(client, options) {
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/character.js
+// node_modules/@dokiworld/app-sdk/src/character.js
 var isRecord8 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString6 = (value) => typeof value === "string" && value.length > 0;
 var empty = (value) => isRecord8(value) && Object.keys(value).length === 0;
@@ -935,7 +952,7 @@ function createCharacterClientExtension(client, options) {
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/persona.js
+// node_modules/@dokiworld/app-sdk/src/persona.js
 var isRecord9 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString7 = (value) => typeof value === "string" && value.length > 0;
 var isPersona = (value) => isRecord9(value) && isString7(value.id) && isString7(value.name) && isBoundedCapabilityValue(value);
@@ -956,7 +973,7 @@ function createPersonaClientExtension(client, options) {
   });
 }
 
-// ../../dokiworld.git/packages/app-sdk/src/apps.js
+// node_modules/@dokiworld/app-sdk/src/apps.js
 var isRecord10 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString8 = (value) => typeof value === "string" && value.length > 0;
 var isApp = (value) => isRecord10(value) && isString8(value.id) && isString8(value.name) && Number.isInteger(value.protocolVersion) && isBoundedCapabilityValue(value);
@@ -2075,7 +2092,7 @@ function initializeLegacyActiveGame(current, target, context, grantedScopes) {
     context
   }), "*");
   const handleMessage = (event) => {
-    if (event.source !== target) return;
+    if (event.source !== target || event.origin !== "null") return;
     const message = parseLegacyAppMessage(event.data, {
       kind: "game",
       appId: current.app.id,
@@ -2121,6 +2138,7 @@ function initializeActiveGame() {
     runId: activeApp.runId,
     target,
     targetOrigin: "*",
+    expectedOrigin: "null",
     extensions: Array.isArray(runtime.extensions) ? runtime.extensions : ["resize", "progress", "checkpoint"],
     init: {
       locale,

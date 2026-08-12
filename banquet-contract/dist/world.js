@@ -57,6 +57,19 @@ function postToParent(scope, message, targetOrigin) {
   }
   scope.parent.postMessage(message, targetOrigin);
 }
+function isWebOrigin(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+function isSecureHostOriginPair(targetOrigin, expectedOrigin) {
+  if (expectedOrigin === "null") return targetOrigin === "*";
+  return isWebOrigin(expectedOrigin) && targetOrigin === expectedOrigin;
+}
 function createExtensionSet(extensions) {
   if (!Array.isArray(extensions) || !extensions.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
     throw new Error("Invalid app extensions");
@@ -334,13 +347,17 @@ function createAppHost({
   init,
   outputs,
   scope = window,
-  targetOrigin = "*",
+  targetOrigin,
+  expectedOrigin,
   createId = defaultId,
   extensions = [],
   initRetryMs = 500,
   exitStateTimeoutMs = 3e3
 } = {}) {
   if (!isBoundedId(appId) || !isBoundedId(runId) || !target?.postMessage) throw new Error("Invalid app host identity or target");
+  if (!isSecureHostOriginPair(targetOrigin, expectedOrigin)) {
+    throw new Error("Invalid app host target or expected origin");
+  }
   if (!isRecord(init) || typeof init.locale !== "string" || !Array.isArray(init.grantedScopes) || !init.grantedScopes.every((value) => typeof value === "string") || !isRecord(init.context) || !isRecord(init.input) || !isContract(init.input) || !("data" in init.input) || !isBoundedJson(init.input.data) || !Array.isArray(outputs) || !outputs.every(isContract)) throw new Error("Invalid app host contract");
   if (!Number.isFinite(initRetryMs) || initRetryMs <= 0 || !Number.isFinite(exitStateTimeoutMs) || exitStateTimeoutMs <= 0) throw new Error("Invalid app host retry timing");
   const extensionTypes = createExtensionSet(extensions);
@@ -379,7 +396,7 @@ function createAppHost({
     post(ack);
   };
   const handleMessage = async (event) => {
-    if (disposed || !connected || event.source !== target) return;
+    if (disposed || !connected || event.source !== target || event.origin !== expectedOrigin) return;
     const ready = parseExternalAppReadyMessage(event.data, appId);
     if (ready) {
       if (instanceId !== ready.instanceId) {
@@ -1858,6 +1875,7 @@ function connectGameHost() {
     runId: gameRunId,
     target,
     targetOrigin: "*",
+    expectedOrigin: "null",
     extensions: ["resize", "progress", "checkpoint"],
     init: {
       locale,

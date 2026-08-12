@@ -1459,6 +1459,7 @@ function connectGameHost() {
     runId: gameRunId,
     target,
     targetOrigin: "*",
+    expectedOrigin: "null",
     extensions: ["resize", "progress", "checkpoint"],
     init: {
       locale,
