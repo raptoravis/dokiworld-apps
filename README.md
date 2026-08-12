@@ -9,7 +9,6 @@ DokiWorld 的外部 App 集合。每个 App 通过本地 `file:` 依赖引用 `@
 | `game-match3` | Game App | 三消游戏，使用 `createAppClient` 对接 `dokiworld.app/2` 协议 |
 | `banquet-contract` | World App | 宴会契约，作为 World 使用 `createAppHost` 嵌套运行 Game |
 | `storyteller` | World App | 纯静态交互叙事 World，渲染对话/动作/选择等 episode 内容 |
-| `extension-bg` | Chrome 扩展 Background | 浏览器扩展后台脚本 |
 
 ## 构建
 
