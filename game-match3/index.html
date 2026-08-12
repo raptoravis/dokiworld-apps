@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Heartline Match</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="match3-ambient" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <main id="game" class="match3" aria-live="polite">
+      <header class="match3-banquet-objective banquet-only">
+        <div>
+          <span id="banquet-goal-label">Goal:</span>
+          <strong id="banquet-goal">Convince your best friend nothing happened last night.</strong>
+        </div>
+        <div class="match3-banquet-moves">
+          <span id="banquet-moves-label">Moves</span>
+          <strong id="banquet-moves">10</strong>
+          <button id="restart" type="button" aria-label="Restart">
+            <img src="./restart.png" alt="" />
+          </button>
+        </div>
+      </header>
+
+      <div class="match3-layout">
+        <aside class="match3-orders banquet-only">
+          <h2 id="banquet-orders-title">Collected</h2>
+          <div id="banquet-order-list" class="match3-order-list"></div>
+        </aside>
+
+        <section class="match3-center">
+          <header class="match3-copy">
+            <strong id="game-title">Heartline Match</strong>
+            <span id="instructions">Swap neighboring candies. Match three or more before time runs out.</span>
+          </header>
+          <div class="match3-stats">
+            <span id="score">Score 0</span>
+            <span id="target">Target 600</span>
+            <span id="moves" hidden></span>
+          </div>
+          <div id="timer" class="match3-timer" aria-label="60 seconds left"><span></span></div>
+          <section class="match3-playfield">
+            <div id="combo" class="match3-combo" aria-live="polite" hidden>Sweet Cascade <strong>x2</strong></div>
+            <div id="board" class="match3-board" role="grid" aria-label="Match-three game board"></div>
+            <div id="effects" class="match3-effects" aria-hidden="true"></div>
+          </section>
+          <div id="gain" class="match3-gain" aria-hidden="true" hidden></div>
+        </section>
+
+        <aside class="match3-side banquet-only">
+          <section class="match3-boosters">
+            <h2 id="banquet-boosters-title">Boosters</h2>
+            <div id="banquet-booster-list" class="match3-booster-list" role="toolbar" aria-label="Boosters"></div>
+          </section>
+          <section class="match3-score-ladder">
+            <div class="match3-score-total">
+              <span id="banquet-score-label">Score</span>
+              <strong id="banquet-score">0</strong>
+            </div>
+            <div class="match3-score-track" aria-hidden="true">
+              <span id="banquet-score-fill"></span>
+            </div>
+            <ol>
+              <li data-threshold="10"><strong>10</strong><span id="banquet-standard-clear">Standard<br />Clear</span></li>
+              <li data-threshold="20"><strong>20</strong><span id="banquet-great-clear">Great<br />Clear</span></li>
+              <li data-threshold="40"><strong>40</strong><span id="banquet-perfect-clear">Perfect<br />Clear</span></li>
+            </ol>
+          </section>
+        </aside>
+      </div>
+
+      <footer id="banquet-instructions" class="match3-banquet-instructions banquet-only">
+        Match any 3 or more identical items. Score as high as you can in 10 moves—no special pattern is required.
+      </footer>
+
+      <div id="celebration" class="match3-celebration" role="status" hidden>
+        <div class="celebration-rays" aria-hidden="true"></div>
+        <div class="celebration-heart" aria-hidden="true">
+          <svg viewBox="0 0 120 108" focusable="false">
+            <path d="M60 104 13 60C-18 28 24-14 60 20 96-14 138 28 107 60Z" />
+          </svg>
+        </div>
+        <strong id="celebration-title">Perfect!</strong>
+        <span id="celebration-score">Score 100</span>
+      </div>
+    </main>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>

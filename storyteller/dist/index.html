@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Storyteller · DokiWorld</title>
+    <link rel="stylesheet" href="./styles.css?v=1.1.1" />
+  </head>
+  <body>
+    <main id="app" class="story-shell" data-phase="waiting">
+      <div class="ambient ambient-one" aria-hidden="true"></div>
+      <div class="ambient ambient-two" aria-hidden="true"></div>
+
+      <aside class="character-rail" aria-label="Character">
+        <div id="portrait-wrap" class="portrait-wrap is-hidden" aria-hidden="true">
+          <img id="portrait" alt="" />
+        </div>
+        <div class="character-rail-copy">
+          <h1 id="rail-character-name">Storyteller</h1>
+          <p id="rail-character-tags" class="character-tags">Interactive story</p>
+          <p id="rail-character-description" class="is-hidden"></p>
+        </div>
+        <section class="character-profile-card">
+          <header><strong id="profile-name">Storyteller</strong><span data-copy="characterProfile">Character profile</span></header>
+          <div><span data-copy="personality">Personality</span><div id="profile-tags" class="profile-tags"></div></div>
+          <div><span data-copy="about">About</span><p id="profile-about"></p></div>
+          <div><span data-copy="hotComments">Hot comments</span><p class="comments-empty" data-copy="commentsEmpty">Comments will appear here when community replies are available.</p></div>
+        </section>
+        <button id="hide-portrait" class="portrait-dismiss" type="button">
+          <span aria-hidden="true">◧</span><span data-copy="hidePortrait">Hide portrait</span>
+        </button>
+      </aside>
+
+      <header class="topbar">
+        <div class="conversation-identity">
+          <button id="portrait-toggle" class="header-avatar-trigger" type="button">
+            <img id="header-avatar" class="header-avatar is-hidden" alt="" />
+          </button>
+          <div>
+            <p id="episode-kicker" class="episode-kicker">Interactive story</p>
+            <h2 id="header-character-name">Storyteller</h2>
+          </div>
+        </div>
+        <div class="header-tools">
+          <button id="tts-toggle" class="icon-button" type="button" aria-label="Read dialogue aloud" title="Read dialogue aloud">◕</button>
+          <button id="text-size" class="icon-button" type="button" aria-label="Change text size" title="Change text size">Aa</button>
+          <button id="skin-toggle" class="icon-button" type="button" aria-label="Change appearance" title="Change appearance">◐</button>
+          <button id="restart" class="icon-button" type="button" aria-label="Replay episode" title="Replay episode"><span aria-hidden="true">↻</span></button>
+        </div>
+      </header>
+
+      <section id="stage" class="stage" aria-live="polite">
+        <article id="story-card" class="story-card">
+          <div id="waiting" class="waiting-state">
+            <div class="pulse" aria-hidden="true"></div>
+            <p data-copy="waiting">Preparing your story…</p>
+          </div>
+
+          <div id="media-view" class="media-view is-hidden">
+            <button id="close-replayed-image" class="media-replay-close is-hidden" type="button" data-copy-title="closeImage"><span aria-hidden="true">×</span></button>
+            <img id="story-image" class="story-media is-hidden" alt="" />
+            <video id="story-video" class="story-media is-hidden" controls playsinline preload="metadata"></video>
+            <p id="media-caption" class="media-caption"></p>
+          </div>
+
+          <div id="dialogue-view" class="dialogue-view is-hidden">
+            <aside class="ai-disclosure">
+              <span data-copy="aiGenerated">All replies are AI-generated. All characters are portrayed as adults (18 or older).</span>
+              <span data-copy="encrypted">Your chats and account are encrypted.</span>
+            </aside>
+            <aside id="opening-tagline" class="opening-tagline is-hidden"><strong>Tagline:</strong><span id="tagline-text"></span></aside>
+            <div id="lines" class="lines" role="log" aria-live="polite"></div>
+            <button id="jump-latest" class="jump-latest is-hidden" type="button"><span aria-hidden="true">↓</span><span data-copy="jumpLatest">Jump to latest</span></button>
+          </div>
+
+          <div id="choice-view" class="choice-view is-hidden">
+            <p class="section-label" data-copy="yourChoice">Your choice</p>
+            <h1 id="choice-prompt"></h1>
+            <div id="choices" class="choices"></div>
+          </div>
+
+          <div id="end-view" class="end-view is-hidden">
+            <p class="section-label" data-copy="episodeComplete">Episode complete</p>
+            <h1 data-copy="continueStory">The story can continue from here.</h1>
+            <form id="continue-form" class="free-reply">
+              <label for="continue-reply" data-copy="continueLabel">What do you do next?</label>
+              <div>
+                <input id="continue-reply" maxlength="500" autocomplete="off" />
+                <button type="submit" data-copy="continue">Continue</button>
+              </div>
+            </form>
+          </div>
+
+          <div id="error-view" class="end-view is-hidden" role="alert">
+            <p class="section-label" data-copy="unable">Unable to continue</p>
+            <h1 data-copy="tryAgain">The episode paused unexpectedly.</h1>
+            <button id="error-retry" class="primary-button" type="button" data-copy="retry">Try again</button>
+          </div>
+
+          <footer id="story-controls" class="story-controls is-hidden">
+            <span id="progress-label">01</span>
+            <div class="progress-track" aria-hidden="true"><span id="progress"></span></div>
+            <button id="continue" class="primary-button" type="button">
+              <span data-copy="next">Next</span><span aria-hidden="true">→</span>
+            </button>
+          </footer>
+        </article>
+      </section>
+
+      <section id="chat-dock" class="chat-dock is-hidden" aria-label="Conversation tools">
+        <div class="chat-tools">
+          <span class="conversation-badge"><span aria-hidden="true">♢</span><span data-copy="conversationStatus">Interactive story · Encrypted conversation</span></span>
+          <span id="chat-status" role="status"></span>
+          <div class="dock-actions">
+            <button id="persona-open" class="persona-trigger" type="button"><span aria-hidden="true">♙</span><span data-copy="chooseRole">Choose a role card</span></button>
+            <button id="generate-image" class="media-tool" type="button" data-copy-title="generateImage" aria-label="Generate image">
+              <svg class="media-tool-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                <circle cx="9" cy="9" r="2"></circle>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+              </svg>
+            </button>
+            <button id="generate-video" class="media-tool" type="button" data-copy-title="generateVideo" aria-label="Generate video">
+              <svg class="media-tool-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"></path>
+                <rect x="2" y="6" width="14" height="12" rx="2"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <form id="chat-form" class="chat-composer">
+          <textarea id="chat-input" rows="1" maxlength="2000" data-copy-placeholder="chatPlaceholder" placeholder="Write a message…"></textarea>
+          <div class="suggestion-tool">
+            <button id="suggest" type="button" data-copy-title="suggest" aria-label="Suggest a reply" title="Suggest a reply">♧</button>
+            <div id="suggestion-panel" class="suggestion-panel is-hidden" aria-live="polite"></div>
+          </div>
+          <button id="chat-send" type="submit" data-copy-title="send" aria-label="Send" title="Send">➤</button>
+        </form>
+      </section>
+
+      <dialog id="persona-dialog" class="persona-dialog">
+        <form id="persona-form" method="dialog">
+          <header><div><h2 data-copy="roleCard">Role card</h2><p data-copy="roleCardHelp">Choose who you are in this story.</p></div><button id="persona-close" type="button" aria-label="Close">×</button></header>
+          <label><span data-copy="roleName">Name</span><input id="persona-name" maxlength="50" required /></label>
+          <div class="persona-row"><label><span data-copy="roleGender">Gender</span><select id="persona-gender"><option value="non-binary" data-copy="genderNeutral">Non-binary</option><option value="female" data-copy="genderFemale">Female</option><option value="male" data-copy="genderMale">Male</option></select></label><label><span data-copy="roleAge">Age</span><input id="persona-age" type="number" min="18" max="120" value="18" /></label></div>
+          <label><span data-copy="roleDescription">Description</span><textarea id="persona-description" rows="4" maxlength="1000"></textarea></label>
+          <footer><button id="persona-clear" type="button" data-copy="clearRole">Clear</button><button class="save-persona" type="submit" data-copy="saveRole">Save and use</button></footer>
+        </form>
+      </dialog>
+
+      <dialog id="app-dialog" class="app-dialog">
+        <section class="app-surface">
+          <header>
+            <div>
+              <p class="section-label" data-copy="interactiveApp">Interactive app</p>
+              <h2 id="app-title">App</h2>
+            </div>
+            <button id="close-app" class="icon-button" type="button" aria-label="Close app" title="Close app">×</button>
+          </header>
+          <div class="app-frame-wrap">
+            <iframe id="app-frame" title="Interactive app" sandbox="allow-scripts allow-forms allow-pointer-lock" allow="autoplay; fullscreen"></iframe>
+            <div id="app-loading" class="app-loading" role="status">
+              <div class="pulse" aria-hidden="true"></div>
+              <span data-copy="loadingApp">Opening app…</span>
+            </div>
+          </div>
+        </section>
+      </dialog>
+    </main>
+    <script type="module" src="./app.js?v=1.1.1"></script>
+  </body>
+</html>

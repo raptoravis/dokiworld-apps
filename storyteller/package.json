@@ -1,0 +1,17 @@
+{
+  "name": "dokiworld-storyteller",
+  "version": "1.1.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:manifest": "node scripts/generate-manifest.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@dokiworld/app-sdk": "file:../../dokiworld.git/packages/app-sdk"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

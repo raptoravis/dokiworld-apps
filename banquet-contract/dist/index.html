@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Banquet Contract</title>
+    <link rel="stylesheet" href="./world.css" />
+  </head>
+  <body>
+    <main id="world" class="world" data-phase="cover">
+      <div class="ambient-grain" aria-hidden="true"></div>
+      <div class="world-shell">
+        <aside id="world-character-panel" class="world-character-panel">
+          <img
+            id="world-character-art"
+            src="./ui/adrian-portrait.png"
+            alt=""
+            decoding="async"
+          />
+          <div class="world-character-shade" aria-hidden="true"></div>
+          <button id="character-card-action" class="character-card-action" type="button">
+            <span data-copy="cardHover"></span>
+          </button>
+        </aside>
+        <section id="world-story-stage" class="world-story-stage">
+
+      <section id="cover-screen" class="screen cover-screen is-active" aria-labelledby="world-title">
+        <div class="cover-backdrop" aria-hidden="true"></div>
+        <div class="cover-shade" aria-hidden="true"></div>
+        <div class="cover-copy">
+          <p class="eyebrow" data-copy="coverEyebrow"></p>
+          <h1 id="world-title">Banquet<br /><em>Contract</em></h1>
+          <div class="cover-rule" aria-hidden="true"><i></i><span>◆</span><i></i></div>
+          <h2 data-copy="chapterTitle"></h2>
+          <p class="cover-intro" data-copy="coverIntro"></p>
+          <button id="begin-story" class="primary-action artwork-action" type="button">
+            <img src="./ui/begin-story.png" alt="" />
+            <span class="visually-hidden" data-copy="begin"></span>
+          </button>
+        </div>
+        <p class="cover-credit" data-copy="coverCredit"></p>
+      </section>
+
+      <section id="video-screen" class="screen video-screen" aria-label="Cinematic scene">
+        <div class="video-backdrop" aria-hidden="true"></div>
+        <video
+          id="story-video"
+          class="story-video is-active"
+          playsinline
+          preload="auto"
+          disablepictureinpicture
+          aria-hidden="false"
+        ></video>
+        <video
+          id="story-video-buffer"
+          class="story-video"
+          playsinline
+          preload="auto"
+          disablepictureinpicture
+          aria-hidden="true"
+        ></video>
+        <div class="cinema-vignette" aria-hidden="true"></div>
+        <div class="cinema-topline">
+          <span data-copy="chapterLabel"></span>
+          <button id="skip-video" type="button" data-copy="skip"></button>
+        </div>
+        <div id="story-overlay" class="story-overlay" aria-live="polite"></div>
+        <article id="video-note-overlay" class="video-note-overlay is-hidden" aria-live="polite">
+          <p id="video-note-copy"></p>
+          <div class="video-note-unreadable" aria-hidden="true">
+            <strong>Alex:</strong>
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+        </article>
+        <button
+          id="video-toggle"
+          class="video-toggle"
+          type="button"
+          data-playing="false"
+          aria-pressed="false"
+        >
+          <img class="play-art" src="./ui/play.png" alt="" />
+          <img class="pause-art" src="./ui/pause.png" alt="" />
+          <span class="visually-hidden" data-video-control-label></span>
+        </button>
+        <div class="cinema-progress" aria-hidden="true"><i id="cinema-progress-fill"></i></div>
+        <div id="video-choice-overlay" class="video-choice-overlay is-hidden" aria-live="polite">
+          <p class="video-choice-prompt" id="video-choice-prompt"></p>
+          <div id="video-choice-list" class="video-choice-list"></div>
+        </div>
+      </section>
+
+      <section id="episode-screen" class="screen episode-screen" aria-labelledby="episode-title">
+        <div class="episode-backdrop" aria-hidden="true"></div>
+        <article class="episode-card">
+          <p class="eyebrow" data-copy="episodeEyebrow"></p>
+          <h2 id="episode-title"></h2>
+          <div id="episode-content" class="episode-content" aria-live="polite"></div>
+          <button id="episode-continue" class="primary-action artwork-action" type="button">
+            <img src="./ui/continue.png" alt="" />
+            <span class="episode-action-label" data-copy="episodeContinue"></span>
+          </button>
+          <button id="episode-retry" class="episode-retry is-hidden" type="button" data-copy="episodeRetry"></button>
+        </article>
+      </section>
+
+      <section id="match-screen" class="screen match-screen" aria-labelledby="match-title">
+        <div class="match-backdrop" aria-hidden="true"></div>
+        <div class="match-stage">
+          <header class="match-header">
+            <div>
+              <p class="eyebrow" data-copy="matchEyebrow"></p>
+              <h2 id="match-title" data-copy="matchTitle"></h2>
+            </div>
+            <div class="match-objective">
+              <span data-copy="matchMoves"></span>
+              <b data-copy="matchGoal"></b>
+            </div>
+          </header>
+          <div class="match-body">
+            <div class="game-shell">
+              <div id="game-loading" class="game-loading" role="status" data-copy="gameLoading"></div>
+              <iframe
+                id="match-game"
+                title="Heartline Match"
+                src="/games/game-match3/index.html"
+                sandbox="allow-scripts"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="result-screen" class="screen result-screen" aria-labelledby="result-title">
+        <div class="result-backdrop" aria-hidden="true"></div>
+        <article class="result-card">
+          <p class="eyebrow" data-copy="resultEyebrow"></p>
+          <div id="result-seal" class="result-seal"><span id="result-score">0</span><small data-copy="points"></small></div>
+          <h2 id="result-title"></h2>
+          <div class="result-message" data-speaker="lily">
+            <div class="result-avatar lily-avatar" aria-hidden="true">L</div>
+            <p data-copy="resultLily"></p>
+          </div>
+          <button id="result-continue" class="primary-action" type="button">
+            <span data-copy="resultContinue"></span>
+            <i aria-hidden="true">›</i>
+          </button>
+        </article>
+      </section>
+
+      <section id="home-screen" class="screen home-screen" aria-labelledby="home-title">
+        <h2 id="home-title" class="visually-hidden" data-copy="homeTitle"></h2>
+        <div class="home-canvas">
+          <img
+            class="home-background-art"
+            src="./ui/main-home-background-placeholder.svg"
+            alt=""
+          />
+          <p class="home-background-note" data-copy="homeBackgroundNote"></p>
+
+          <div class="home-character-frame">
+            <img
+              class="home-character-art"
+              src="./ui/main-home-character-placeholder.svg"
+              alt=""
+            />
+            <span class="home-character-label" data-copy="homeCharacterPlaceholder"></span>
+          </div>
+
+          <nav class="home-controls home-controls-left" aria-label="">
+            <button class="home-action home-action-immerse" type="button" data-home-action="immersive-companion">
+              <span data-copy="homeImmersiveCompanion"></span>
+            </button>
+            <button class="home-action home-action-background" type="button" data-home-action="change-background">
+              <span data-copy="homeChangeBackground"></span>
+            </button>
+            <button class="home-action home-action-chat" type="button" data-home-action="chat">
+              <span data-copy="homeChat"></span>
+            </button>
+          </nav>
+
+          <nav class="home-controls home-controls-right" aria-label="">
+            <button class="home-action home-action-poke" type="button" data-home-action="poke">
+              <span data-copy="homePoke"></span>
+            </button>
+            <button class="home-action home-action-outfit" type="button" data-home-action="change-outfit">
+              <span data-copy="homeChangeOutfit"></span>
+            </button>
+            <button id="home-continue-story" class="home-action home-action-continue" type="button" data-home-action="continue-story">
+              <span data-copy="homeContinueStory"></span>
+            </button>
+          </nav>
+        </div>
+      </section>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./world.js"></script>
+  </body>
+</html>

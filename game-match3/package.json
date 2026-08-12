@@ -1,0 +1,17 @@
+{
+  "name": "dokiworld-game-match3",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "generate:manifest": "node scripts/generate-manifest.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@dokiworld/app-sdk": "file:../../dokiworld.git/packages/app-sdk"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

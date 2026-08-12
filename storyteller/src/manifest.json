@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "version": "1.1.1",
+  "id": "storyteller",
+  "kind": "world",
+  "status": "active",
+  "entry": "index.html",
+  "protocolVersion": 2,
+  "runtime": {
+    "protocol": "dokiworld.app",
+    "protocolVersion": 2,
+    "input": {
+      "contract": "doki.world.storyteller-input",
+      "version": 1
+    },
+    "outputs": [
+      {
+        "contract": "doki.world.session-result",
+        "version": 1
+      }
+    ],
+    "extensions": [
+      "world",
+      "episode",
+      "chat",
+      "dialogue",
+      "media",
+      "speech",
+      "storage",
+      "character",
+      "persona",
+      "apps",
+      "checkpoint"
+    ]
+  },
+  "episodeRenderer": true,
+  "launchRequirements": {
+    "minPlayers": 1
+  },
+  "contextScopes": {
+    "required": [],
+    "optional": [
+      "character.identity",
+      "character.avatar",
+      "character.card",
+      "player_persona"
+    ]
+  },
+  "locales": {
+    "en": {
+      "name": "Storyteller",
+      "description": "A cinematic player for interactive episodes with dialogue, media, choices, and app launches."
+    },
+    "zh-cn": {
+      "name": "故事演绎",
+      "description": "用于演绎互动剧集的电影式播放器，支持对话、媒体、选择与应用拉起。"
+    }
+  },
+  "selection": {
+    "tags": [
+      "interactive-story",
+      "episode",
+      "dialogue",
+      "media"
+    ],
+    "promptHint": {
+      "en": "Use this app to present a World card's configured interactive episodes.",
+      "zh-cn": "使用此应用演绎世界卡中配置的互动剧集。"
+    }
+  }
+}

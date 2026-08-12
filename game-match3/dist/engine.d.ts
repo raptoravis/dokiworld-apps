@@ -1,0 +1,12 @@
+export type Match3Kind = "performance" | "intelligence" | "charm" | "physique" | "heart";
+export type Match3Position = { row: number; column: number };
+export type Match3State = { board: Match3Kind[][]; score: number; movesUsed: number; cleared: number; bestCascade: number };
+export type Match3Move = { state: Match3State; valid: boolean; cascades: number; scoreGained: number; cleared: number };
+export const MATCH3_KINDS: readonly Match3Kind[];
+export function createSeededRandom(seed: number): () => number;
+export function createMatch3State(config: { rows: number; columns: number }, random?: () => number): Match3State;
+export function areAdjacent(first: Match3Position, second: Match3Position): boolean;
+export function findMatches(board: Match3Kind[][]): Match3Position[];
+export function swapMatch3Cells(board: Match3Kind[][], first: Match3Position, second: Match3Position): Match3Kind[][];
+export function applyMatch3Move(state: Match3State, first: Match3Position, second: Match3Position, random?: () => number): Match3Move;
+export function hasValidMove(board: Match3Kind[][]): boolean;

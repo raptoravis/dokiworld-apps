@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "version": "1.0.0",
+  "id": "game-match3",
+  "kind": "game",
+  "capability": "game.puzzle.match-three",
+  "entry": "index.html",
+  "launchRequirements": {
+    "minPlayers": 2
+  },
+  "context": {
+    "requiredScopes": [],
+    "optionalScopes": []
+  },
+  "locales": {
+    "en": {
+      "name": "Heartline Match",
+      "description": "Connect matching signals before time runs out.",
+      "aliases": [
+        "Match Three",
+        "Match-3",
+        "match-three game"
+      ]
+    },
+    "zh-cn": {
+      "name": "心意连线",
+      "description": "在时间结束前连接相同信号。",
+      "aliases": [
+        "三消",
+        "心意连线",
+        "玩三消"
+      ]
+    }
+  },
+  "runtime": {
+    "protocol": "dokiworld.app",
+    "protocolVersion": 2,
+    "input": {
+      "contract": "doki.game.match3-input",
+      "version": 1
+    },
+    "outputs": [
+      {
+        "contract": "doki.game.result",
+        "version": 1
+      }
+    ],
+    "extensions": [
+      "resize",
+      "progress",
+      "checkpoint"
+    ]
+  }
+}

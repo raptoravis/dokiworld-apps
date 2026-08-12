@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 718" role="img" aria-label="">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8c2b6"/>
+      <stop offset="0.55" stop-color="#b89083"/>
+      <stop offset="1" stop-color="#7d5f65"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#72525a"/>
+      <stop offset="1" stop-color="#32242d"/>
+    </linearGradient>
+    <radialGradient id="lamp" cx="0.18" cy="0.25" r="0.42">
+      <stop offset="0" stop-color="#ffe7b5" stop-opacity="0.9"/>
+      <stop offset="0.48" stop-color="#d99873" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#9b6a6a" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="24"/></filter>
+  </defs>
+  <rect width="1280" height="718" fill="url(#wall)"/>
+  <rect y="476" width="1280" height="242" fill="url(#floor)"/>
+  <rect width="1280" height="718" fill="url(#lamp)"/>
+  <path d="M0 476h1280" stroke="#e4c5af" stroke-opacity="0.34" stroke-width="4"/>
+  <g opacity="0.42">
+    <rect x="64" y="112" width="274" height="294" rx="16" fill="#6b5961"/>
+    <rect x="82" y="130" width="238" height="258" rx="9" fill="#202331"/>
+    <circle cx="164" cy="218" r="44" fill="#dcc28f" filter="url(#blur)"/>
+    <path d="M83 327c61-48 131-51 236-7v68H83Z" fill="#384553"/>
+  </g>
+  <g opacity="0.34">
+    <rect x="930" y="116" width="286" height="300" rx="18" fill="#58414f"/>
+    <rect x="950" y="136" width="246" height="260" rx="9" fill="#222433"/>
+    <path d="M951 330c80-73 161-73 244-8v74H951Z" fill="#354650"/>
+    <circle cx="1092" cy="217" r="42" fill="#d9ad78" filter="url(#blur)"/>
+  </g>
+  <ellipse cx="250" cy="585" rx="238" ry="54" fill="#2c2028" opacity="0.24"/>
+  <ellipse cx="1040" cy="585" rx="238" ry="54" fill="#2c2028" opacity="0.24"/>
+  <rect width="1280" height="718" fill="#2c1724" opacity="0.1"/>
+</svg>
