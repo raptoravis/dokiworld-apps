@@ -98,6 +98,153 @@ Storyteller `1.1.1` 已在 manifest 中声明并在 `src/app.js` 中实际使用
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 
+## 新增 App（Game / World）
+
+新增 App 不只是复制一份静态页面。一个可被 DokiWorld 发现并安全启动的 App，需要同时完成目录、manifest contract、SDK 生命周期、权限、本地化、构建、测试和 catalog 接入。
+
+### 1. 创建独立目录
+
+目录名就是 App ID，必须使用小写字母、数字和连字符，并与 manifest 的 `id` 完全一致，例如：
+
+```text
+dokiworld-apps.git/
+└── my-new-app/
+    ├── package.json
+    ├── package-lock.json
+    ├── manifest.json          # 也可以由 scripts/generate-manifest.mjs 生成
+    ├── index.html
+    ├── src/                   # 是否使用 src/ 由 App 自己决定
+    ├── scripts/
+    │   ├── build.mjs
+    │   └── generate-manifest.mjs
+    ├── tests/
+    └── README.md
+```
+
+可以分别参考：
+
+- Game：`game-match3`；
+- 通用 World：`storyteller`；
+- 使用 Episode、Dialogue、媒体及嵌套 App 的 World：`storyteller`。
+
+`package.json` 至少应提供 `build`、`test` 和 `generate:manifest` 脚本，并通过 `file:../../dokiworld.git/packages/app-sdk` 引用 `@dokiworld/app-sdk`。构建必须生成完整的 `dist/`，其中包含可直接加载的入口文件和 `dist/manifest.json`。
+
+### 2. 定义 App contract
+
+Game 与 World 都使用 `dokiworld.app/2`，但 catalog 当前接受的 manifest 形状不同：
+
+| 项目 | Game | World |
+|---|---|---|
+| `kind` | `game` | `world` |
+| manifest schema | 新 App 使用 `schemaVersion: 2` | 当前使用 `schemaVersion: 1` |
+| 最小玩家数 | `launchRequirements.minPlayers` 至少为 `2` | 通常为 `1` |
+| input contract | 例如 `doki.game.<id>-input` | 例如 `doki.world.<id>-input` |
+| output contract | 通常为 `doki.game.result` 或专用结果 | 通常为 `doki.world.session-result` |
+| context scopes | `context.requiredScopes` / `optionalScopes` | `contextScopes.required` / `optional` |
+| catalog 注册 | 还需在 DokiWorld 的 `frontend/config/external-apps.json` 注册 | 本地同步后由 World catalog 自动发现 |
+
+两类 App 的 `runtime` 都必须声明：
+
+```json
+{
+  "runtime": {
+    "protocol": "dokiworld.app",
+    "protocolVersion": 2,
+    "input": {
+      "contract": "doki.game.my-new-app-input",
+      "version": 1
+    },
+    "outputs": [
+      {
+        "contract": "doki.game.result",
+        "version": 1
+      }
+    ],
+    "extensions": ["progress", "checkpoint"]
+  }
+}
+```
+
+World 应把示例中的 `doki.game.*` 换成自己的 `doki.world.*` contract。contract 名和版本属于 Host 与 App 之间的公开协议；修改已有 contract 的结构时应提升 contract version，并同步更新 Host adapter 和测试。
+
+manifest 的版本应以 `package.json.version` 为单一事实来源，由生成脚本写入。App ID、`package.json` 版本、源码 manifest 和 `dist/manifest.json` 必须保持一致。
+
+### 3. 接入 App SDK 生命周期
+
+App 入口应通过 `createAppClient` 完成 ready/init/initialized、运行消息、completion 和退出协商。不要自行拼装 `postMessage` 协议，也不要从 iframe 读取 DokiWorld token 或直接调用内部 API。
+
+每个可选 capability 都必须完成四处接线：
+
+1. 在 manifest 的 `runtime.extensions` 中声明；
+2. 在 `createAppClient({ extensions })` 中声明；
+3. 创建对应的 SDK client extension，并调用其公开方法；
+4. 确认 DokiWorld Host 已注册对应的 host extension。
+
+只改 manifest 不会让 capability 生效。listener、extension subscription、timer 和嵌套 App Host 都应在结束或卸载时释放。
+
+Game 至少应提交符合 output contract 的结构化结果。World 应提交 session result；如果 World 内会启动 Game 或其他 App，优先使用 `apps.launch()`，只有需要兼容旧 App 时才保留 `createAppHost` 桥。
+
+### 4. 声明权限与双语内容
+
+只申请实际使用的 scope。需要角色身份、头像、角色卡或玩家角色卡时，在对应的 required/optional scope 中声明，并确认 Host 允许该 scope；App 必须能处理 optional scope 未授权或 capability 不可用的情况。
+
+manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description`。英文是规范产品语言，新增用户可见文案必须在同一变更中提供简体中文翻译。Game 的别名及 DokiWorld 注册中的 `when`/`avoid` 也必须同时维护两种语言。
+
+### 5. 为 Game 增加 DokiWorld 注册
+
+新的 schema v2 Game 只有 supplier manifest 还不够。还需在 DokiWorld 主仓库的 `frontend/config/external-apps.json` 增加同 ID 的注册项，声明：
+
+- `status`；
+- Host 批准的 `allowedScopes`；
+- `selection.activationPolicy`；
+- 英文和简体中文的 `when` / `avoid` 选择提示。
+
+supplier manifest 不应重复定义由 DokiWorld 管理的 `status` 或 `selection`。manifest 中的 required scope 必须包含在注册项的 `allowedScopes` 中，否则 Game catalog 生成会失败。World catalog 当前不使用这份 Game 注册表。
+
+### 6. 构建与测试
+
+在新 App 目录执行：
+
+```powershell
+npm install
+npm run generate:manifest
+npm test
+npm run build
+```
+
+测试至少应覆盖：
+
+- manifest ID、kind、版本、runtime contract 和 extension 声明；
+- SDK 初始化、输入校验、completion acknowledgement 和退出 cleanup；
+- 每项声明 capability 的真实 SDK 调用，而不只是 manifest 字符串；
+- required/optional scope 缺失时的降级行为；
+- 英文和简体中文关键文案；
+- `dist/manifest.json` 的入口和静态资源确实存在。
+
+如果改动了 App SDK，还应先在 DokiWorld 主仓库运行 SDK 测试和类型检查，再重新安装或构建 App，使最新 SDK 被内联进 bundle。
+
+### 7. 同步并验证 DokiWorld
+
+本地联调时，在 DokiWorld 主仓库明确指定本仓库位置并运行同步：
+
+```powershell
+cd D:\dev\dokiworld.git
+$env:DOKIWORLD_EXT_ROOT = "D:\dev\dokiworld-apps.git"
+npm run sync:local-apps
+```
+
+同步脚本会扫描本仓库中带 `package.json` 的目录、执行各自的 `npm run build`，再根据 manifest 的 `kind` 把产物复制到 `frontend/public/games/<id>/` 或 `frontend/public/worlds/<id>/`，并重新生成 catalog；不需要手工编辑 `frontend/.local-apps-sync.json` 或生成后的 `catalog.json`。
+
+最后至少检查：
+
+- Game 出现在 Game catalog，并能从真实 Host 流程启动和返回结果；
+- World 出现在 World catalog，并可通过 `/worlds/<id>` 和 `/zh-cn/worlds/<id>` 打开；
+- Developer Mode 加载的是本地同步产物，而不是远程 CDN 版本；
+- 浏览器控制台没有 origin、protocol、contract、scope 或 capability 错误；
+- 英文与简体中文入口都能完成一次完整运行和退出。
+
+准备发布时，应提升 App 版本、重新构建并发布完整 `dist/`，然后更新部署环境所使用的 App catalog 或静态资源源。不要只上传修改后的 JavaScript 而保留旧 manifest 版本。
+
 ## 安装与构建
 
 分别构建三个 App：
