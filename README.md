@@ -225,7 +225,8 @@ manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description
 
 - `status`，值为 `active`、`deprecated` 或 `disabled`；
 - 实际使用的 required/optional context scopes；
-- `selection`，其中双语 `promptHint` 必填。
+- `selection`，其中双语 `promptHint` 必填；
+- 如果输出 `doki.game.result/1`，通过 `result.metrics` 声明运行时可能返回的指标名称，使 Episode 编辑器能针对所选 Game 列出对应的 `{{app.metrics.*}}` 变量。
 
 `selection` 还可包含 `avoidHint`、`activationPolicy`、tags、intents 和 examples。context scope 必须属于 Host 支持的公开 scope，否则 Game catalog 生成会失败。World manifest 会拒绝 `selection`。
 

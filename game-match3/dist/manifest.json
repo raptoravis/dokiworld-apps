@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "id": "game-match3",
   "kind": "game",
   "status": "active",
@@ -43,6 +43,14 @@
       "en": "Do not infer the game from ordinary mentions of matching three clues.",
       "zh-cn": "普通叙事中提到对应三条线索时不要误拉起。"
     }
+  },
+  "result": {
+    "metrics": [
+      "points",
+      "moves",
+      "cleared",
+      "bestCascade"
+    ]
   },
   "runtime": {
     "protocol": "dokiworld.app",

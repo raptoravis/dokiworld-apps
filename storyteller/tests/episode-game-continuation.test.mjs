@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  interpolateAppResultUtterances,
   interpolateAppResultTemplate,
   resolveConfiguredAppResult,
 } from "../src/episode-game-result.js";
@@ -36,4 +37,31 @@ test("dialog and choice copy can interpolate the active app result", () => {
     interpolateAppResultTemplate("Missing {{app.metrics.moves}}", result),
     "Missing {{app.metrics.moves}}",
   );
+});
+
+test("a hosted continuation interpolates dialog and choice payloads before rendering", () => {
+  const result = resolveConfiguredAppResult(completedOutput, null)?.result;
+  const utterances = [{
+    speaker: "character",
+    segments: [{
+      type: "dialogue",
+      text: "{{app.outcome}} {{app.score}}/{{app.maxScore}} {{app.metrics.points}}",
+    }, {
+      type: "choices",
+      text: "Choose after {{app.outcome}} with {{app.score}} points",
+      options: [{ id: "continue", label: "Keep {{app.metrics.points}} points" }],
+    }],
+  }];
+
+  assert.deepEqual(interpolateAppResultUtterances(utterances, result), [{
+    speaker: "character",
+    segments: [{
+      type: "dialogue",
+      text: "completed 57/100 340",
+    }, {
+      type: "choices",
+      text: "Choose after completed with 57 points",
+      options: [{ id: "continue", label: "Keep 340 points" }],
+    }],
+  }]);
 });

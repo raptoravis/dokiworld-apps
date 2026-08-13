@@ -10,6 +10,9 @@ It bundles `@dokiworld/app-sdk` and uses `createAppClient` with the
   `doki.game.result/1`.
 - Closing an unfinished run returns an `exited` result containing the current
   normalized score and metrics, so Episode settlement does not lose progress.
+- The manifest declares `points`, `moves`, `cleared`, and `bestCascade` under
+  `result.metrics`, allowing Episode authoring tools to list the corresponding
+  `{{app.metrics.*}}` variables when Heartline Match is selected.
 
 ## SDK dependency source
 

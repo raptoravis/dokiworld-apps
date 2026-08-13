@@ -824,6 +824,32 @@ function interpolateAppResultTemplate(value, result2) {
     return ["string", "number", "boolean"].includes(typeof resolved) ? String(resolved) : token;
   });
 }
+function interpolateAppResultUtterances(utterances, result2) {
+  if (!Array.isArray(utterances)) return utterances;
+  return utterances.map((utterance) => {
+    if (!utterance || typeof utterance !== "object" || Array.isArray(utterance)) {
+      return utterance;
+    }
+    const segments = Array.isArray(utterance.segments) ? utterance.segments.map((segment) => {
+      if (!segment || typeof segment !== "object" || Array.isArray(segment)) {
+        return segment;
+      }
+      const options = Array.isArray(segment.options) ? segment.options.map((option) => option && typeof option === "object" && !Array.isArray(option) ? {
+        ...option,
+        label: interpolateAppResultTemplate(option.label, result2)
+      } : option) : segment.options;
+      return {
+        ...segment,
+        text: interpolateAppResultTemplate(segment.text, result2),
+        ...Array.isArray(segment.options) ? { options } : {}
+      };
+    }) : utterance.segments;
+    return {
+      ...utterance,
+      ...Array.isArray(utterance.segments) ? { segments } : {}
+    };
+  });
+}
 function resolveConfiguredAppResult(output, nextBeatId = null) {
   const result2 = parseGameResult(output);
   return result2 ? { result: result2, nextBeatId } : null;
@@ -1936,14 +1962,15 @@ function completeLocalConfiguredApp(output = null) {
   else showEnd();
 }
 function completeHostedConfiguredApp(result2, utterances = null) {
+  const interpolatedUtterances = Array.isArray(utterances) ? interpolateAppResultUtterances(utterances, result2) : null;
   if (hostedResultPending) {
     hostedResultPending = false;
-    if (Array.isArray(utterances)) acceptEpisode(utterances);
+    if (interpolatedUtterances) acceptEpisode(interpolatedUtterances);
     else showDialogueHistory();
     return;
   }
   const config = activeApp?.config || pendingAction?.gameConfig || {};
-  const continueWithNarrative = Array.isArray(utterances) ? () => acceptEpisode(utterances) : null;
+  const continueWithNarrative = interpolatedUtterances ? () => acceptEpisode(interpolatedUtterances) : null;
   closeConfiguredApp(false);
   renderGameResult(result2, null, config, continueWithNarrative);
 }

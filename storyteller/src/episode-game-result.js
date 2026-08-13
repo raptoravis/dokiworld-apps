@@ -16,6 +16,41 @@ export function interpolateAppResultTemplate(value, result) {
   });
 }
 
+export function interpolateAppResultUtterances(utterances, result) {
+  if (!Array.isArray(utterances)) return utterances;
+  return utterances.map((utterance) => {
+    if (!utterance || typeof utterance !== "object" || Array.isArray(utterance)) {
+      return utterance;
+    }
+    const segments = Array.isArray(utterance.segments)
+      ? utterance.segments.map((segment) => {
+          if (!segment || typeof segment !== "object" || Array.isArray(segment)) {
+            return segment;
+          }
+          const options = Array.isArray(segment.options)
+            ? segment.options.map((option) => (
+                option && typeof option === "object" && !Array.isArray(option)
+                  ? {
+                      ...option,
+                      label: interpolateAppResultTemplate(option.label, result),
+                    }
+                  : option
+              ))
+            : segment.options;
+          return {
+            ...segment,
+            text: interpolateAppResultTemplate(segment.text, result),
+            ...(Array.isArray(segment.options) ? { options } : {}),
+          };
+        })
+      : utterance.segments;
+    return {
+      ...utterance,
+      ...(Array.isArray(utterance.segments) ? { segments } : {}),
+    };
+  });
+}
+
 export function resolveConfiguredAppResult(output, nextBeatId = null) {
   const result = parseGameResult(output);
   return result ? { result, nextBeatId } : null;

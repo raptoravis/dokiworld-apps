@@ -12,6 +12,7 @@ import { createPersonaClientExtension } from "@dokiworld/app-sdk/persona";
 import { createAppsClientExtension } from "@dokiworld/app-sdk/apps";
 import { createGameOptions } from "./game-options.js";
 import {
+  interpolateAppResultUtterances,
   interpolateAppResultTemplate,
   resolveConfiguredAppResult,
 } from "./episode-game-result.js";
@@ -1216,15 +1217,18 @@ function completeLocalConfiguredApp(output = null) {
 }
 
 function completeHostedConfiguredApp(result, utterances = null) {
+  const interpolatedUtterances = Array.isArray(utterances)
+    ? interpolateAppResultUtterances(utterances, result)
+    : null;
   if (hostedResultPending) {
     hostedResultPending = false;
-    if (Array.isArray(utterances)) acceptEpisode(utterances);
+    if (interpolatedUtterances) acceptEpisode(interpolatedUtterances);
     else showDialogueHistory();
     return;
   }
   const config = activeApp?.config || pendingAction?.gameConfig || {};
-  const continueWithNarrative = Array.isArray(utterances)
-    ? () => acceptEpisode(utterances)
+  const continueWithNarrative = interpolatedUtterances
+    ? () => acceptEpisode(interpolatedUtterances)
     : null;
   closeConfiguredApp(false);
   renderGameResult(result, null, config, continueWithNarrative);
