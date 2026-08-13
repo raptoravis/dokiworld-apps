@@ -49,7 +49,7 @@ test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
   assert.match(source, /const APP_LAUNCH_TIMEOUT_MS = 60 \* 60 \* 1_000/);
   assert.match(source, /createAppsClientExtension\(dokiworld, \{ timeoutMs: APP_LAUNCH_TIMEOUT_MS \}\)/);
   assert.match(source, /parseGameResult\(launch\.output\)/);
-  assert.match(source, /resolveConfiguredGameResult/);
+  assert.match(source, /resolveConfiguredAppResult/);
   assert.match(source, /type:\s*"episode\.gameCompleted"/);
   assert.doesNotMatch(source, /type:\s*"episode\.gameResult"/);
   assert.doesNotMatch(source, /type:\s*"chat\.generateMedia"/);

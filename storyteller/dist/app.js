@@ -369,39 +369,6 @@ var isRecord3 = (value) => Boolean(value && typeof value === "object" && !Array.
 var isString = (value) => typeof value === "string";
 var isOptionalRecord = (value) => value === void 0 || value === null || isRecord3(value);
 var noPayload = (payload) => Object.keys(payload).length === 0;
-function matchesGameResultCondition(result2, condition) {
-  if (!isRecord3(condition)) return true;
-  if (condition.outcomes !== void 0) {
-    if (!Array.isArray(condition.outcomes) || condition.outcomes.length === 0 || !condition.outcomes.every((outcome) => ["win", "loss", "draw", "completed", "exited"].includes(outcome)) || !condition.outcomes.includes(result2.outcome)) return false;
-  }
-  if (condition.minScore !== void 0) {
-    if (!Number.isInteger(condition.minScore) || condition.minScore < 0 || condition.minScore > 100) return false;
-    if (result2.normalizedScore < condition.minScore) return false;
-  }
-  if (condition.maxScore !== void 0) {
-    if (!Number.isInteger(condition.maxScore) || condition.maxScore < 0 || condition.maxScore > 100) return false;
-    if (result2.normalizedScore > condition.maxScore) return false;
-  }
-  if (Number.isInteger(condition.minScore) && Number.isInteger(condition.maxScore) && condition.minScore > condition.maxScore) return false;
-  if (condition.metrics !== void 0) {
-    if (!isRecord3(condition.metrics)) return false;
-    for (const [key, expected] of Object.entries(condition.metrics)) {
-      if (!["string", "number", "boolean"].includes(typeof expected)) return false;
-      if (result2.metrics[key] !== expected) return false;
-    }
-  }
-  return true;
-}
-function resolveEpisodeGameResult(output, routes = [], fallbackNextBeatId = null) {
-  const result2 = parseGameResult(output);
-  if (!result2) return null;
-  const route = Array.isArray(routes) ? routes.find((candidate) => isRecord3(candidate) && isString(candidate.id) && isString(candidate.nextBeatId) && matchesGameResultCondition(result2, candidate.when)) : void 0;
-  return Object.freeze({
-    result: result2,
-    routeId: route?.id ?? null,
-    nextBeatId: route?.nextBeatId ?? (isString(fallbackNextBeatId) ? fallbackNextBeatId : null)
-  });
-}
 var CLIENT_VALIDATORS = Object.freeze({
   "episode.start": noPayload,
   "episode.restart": noPayload,
@@ -845,12 +812,21 @@ function createGameOptions(config) {
 }
 
 // src/episode-game-result.js
-function resolveConfiguredGameResult(output, beat, fallbackNextBeatId = null) {
-  return resolveEpisodeGameResult(
-    output,
-    Array.isArray(beat?.action?.resultRoutes) ? beat.action.resultRoutes : [],
-    fallbackNextBeatId
-  );
+var APP_RESULT_TEMPLATE = /\{\{app\.(outcome|score|maxScore|metrics\.([A-Za-z0-9_.:-]+))\}\}/g;
+function interpolateAppResultTemplate(value, result2) {
+  if (typeof value !== "string" || !result2 || typeof result2 !== "object") return value;
+  return value.replace(APP_RESULT_TEMPLATE, (token, field, metricKey) => {
+    let resolved;
+    if (field === "outcome") resolved = result2.outcome;
+    else if (field === "score") resolved = result2.normalizedScore;
+    else if (field === "maxScore") resolved = 100;
+    else resolved = result2.metrics?.[metricKey];
+    return ["string", "number", "boolean"].includes(typeof resolved) ? String(resolved) : token;
+  });
+}
+function resolveConfiguredAppResult(output, nextBeatId = null) {
+  const result2 = parseGameResult(output);
+  return result2 ? { result: result2, nextBeatId } : null;
 }
 
 // src/app.js
@@ -1096,6 +1072,7 @@ var beatsById = /* @__PURE__ */ new Map();
 var assetsById = /* @__PURE__ */ new Map();
 var linkedBeatIds = /* @__PURE__ */ new Set();
 var localActionBeat = null;
+var localAppResultContext = null;
 var hostedResultPending = false;
 var playerPersona = null;
 var activeVideo = null;
@@ -1342,18 +1319,30 @@ function localPathItems(startBeatId) {
         if (!isRecord12(segment)) return;
         items.push({
           speakerName: experience?.title || "",
-          segment: { ...segment, beatId: beat.id, localAuthored: true }
+          segment: {
+            ...segment,
+            text: interpolateAppResultTemplate(segment.text, localAppResultContext),
+            beatId: beat.id,
+            localAuthored: true
+          }
         });
       });
     });
     if (isRecord12(beat.choices)) {
+      const options = Array.isArray(beat.choices.options) ? beat.choices.options.map((option) => isRecord12(option) ? {
+        ...option,
+        label: interpolateAppResultTemplate(option.label, localAppResultContext)
+      } : option) : [];
       items.push({
         speakerName: experience?.title || "",
         segment: {
           type: "choices",
           beatId: beat.id,
-          text: typeof beat.choices.description === "string" ? beat.choices.description : beat.goal,
-          options: Array.isArray(beat.choices.options) ? beat.choices.options : [],
+          text: interpolateAppResultTemplate(
+            typeof beat.choices.description === "string" ? beat.choices.description : beat.goal,
+            localAppResultContext
+          ),
+          options,
           allowFreeText: true,
           localAuthored: true
         }
@@ -1389,6 +1378,7 @@ function playConfiguredPath(startBeatId) {
   renderNext();
 }
 function startConfiguredExperience() {
+  localAppResultContext = null;
   const root = configuredRoot();
   if (!root || pathNeedsLlm(root.id)) {
     showWaiting();
@@ -1932,15 +1922,12 @@ function completeLocalConfiguredApp(output = null) {
   closeConfiguredApp(false);
   if (isRecord12(output)) {
     const inferredTarget = nextConfiguredBeat(beat);
-    const resolution = resolveConfiguredGameResult(
-      output,
-      beat,
-      inferredTarget?.id ?? null
-    );
+    const resolution = resolveConfiguredAppResult(output, inferredTarget?.id ?? null);
     if (!resolution) {
       showError(copy.appResultInvalid);
       return;
     }
+    localAppResultContext = resolution.result;
     renderGameResult(resolution.result, resolution.nextBeatId, config);
     return;
   }
@@ -2075,7 +2062,6 @@ function initialize(message) {
   assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   linkedBeatIds = new Set(beats.flatMap((beat) => [
     ...typeof beat.nextBeatId === "string" ? [beat.nextBeatId] : [],
-    ...Array.isArray(beat.action?.resultRoutes) ? beat.action.resultRoutes.flatMap((route) => typeof route?.nextBeatId === "string" ? [route.nextBeatId] : []) : [],
     ...Array.isArray(beat.choices?.options) ? beat.choices.options.flatMap((option) => typeof option?.nextBeatId === "string" ? [option.nextBeatId] : []) : []
   ]));
   applyCopy();

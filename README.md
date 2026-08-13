@@ -10,7 +10,7 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用�
 |---|---:|---|---|
 | `game-match3` | `1.0.4` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
 | `banquet-contract` | `1.0.4` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.6` | World App | 使用 Episode、Dialogue 及 SDK 2.1 capabilities 渲染互动剧集和消费 Game 结算 |
+| `storyteller` | `1.1.8` | World App | 使用 Episode、Dialogue 及 SDK 2.1 capabilities 渲染互动剧集和消费 Game 结算 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
 

@@ -30,7 +30,7 @@ npm run build
 
 The build creates the deployable `dist/` directory and bundles the SDK into the browser JavaScript.
 
-Configured games launch exclusively through the SDK `apps` capability (protocol v2). Storyteller waits for long-running games, accepts completion only from the `doki.game.result/1` output contract, and forwards the complete output as `episode.gameCompleted`. In deterministic Episodes it uses `resolveEpisodeGameResult()` to select the first matching `resultRoutes` branch; the action's `nextBeatId` remains the fallback.
+Configured games launch exclusively through the SDK `apps` capability (protocol v2). Storyteller waits for long-running games, accepts completion only from the `doki.game.result/1` output contract, and forwards the complete output as `episode.gameCompleted`. Dialog and Choice modules placed after an App continue automatically when it finishes; their prompts and fixed text can use `{{app.outcome}}`, `{{app.score}}`, `{{app.maxScore}}`, and `{{app.metrics.<key>}}`. The persisted experience protocol uses the App action's single `nextBeatId` as an internal continuation link, not as a separately authored result Episode.
 
 ## Use the adjacent local SDK
 

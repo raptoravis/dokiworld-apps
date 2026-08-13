@@ -11,7 +11,10 @@ import { createCharacterClientExtension } from "@dokiworld/app-sdk/character";
 import { createPersonaClientExtension } from "@dokiworld/app-sdk/persona";
 import { createAppsClientExtension } from "@dokiworld/app-sdk/apps";
 import { createGameOptions } from "./game-options.js";
-import { resolveConfiguredGameResult } from "./episode-game-result.js";
+import {
+  interpolateAppResultTemplate,
+  resolveConfiguredAppResult,
+} from "./episode-game-result.js";
 
 const WORLD_ID = "storyteller";
 const APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1_000;
@@ -258,6 +261,7 @@ let beatsById = new Map();
 let assetsById = new Map();
 let linkedBeatIds = new Set();
 let localActionBeat = null;
+let localAppResultContext = null;
 let hostedResultPending = false;
 let playerPersona = null;
 let activeVideo = null;
@@ -541,18 +545,32 @@ function localPathItems(startBeatId) {
         if (!isRecord(segment)) return;
         items.push({
           speakerName: experience?.title || "",
-          segment: { ...segment, beatId: beat.id, localAuthored: true },
+          segment: {
+            ...segment,
+            text: interpolateAppResultTemplate(segment.text, localAppResultContext),
+            beatId: beat.id,
+            localAuthored: true,
+          },
         });
       });
     });
     if (isRecord(beat.choices)) {
+      const options = Array.isArray(beat.choices.options)
+        ? beat.choices.options.map((option) => isRecord(option) ? {
+          ...option,
+          label: interpolateAppResultTemplate(option.label, localAppResultContext),
+        } : option)
+        : [];
       items.push({
         speakerName: experience?.title || "",
         segment: {
           type: "choices",
           beatId: beat.id,
-          text: typeof beat.choices.description === "string" ? beat.choices.description : beat.goal,
-          options: Array.isArray(beat.choices.options) ? beat.choices.options : [],
+          text: interpolateAppResultTemplate(
+            typeof beat.choices.description === "string" ? beat.choices.description : beat.goal,
+            localAppResultContext,
+          ),
+          options,
           allowFreeText: true,
           localAuthored: true,
         },
@@ -590,6 +608,7 @@ function playConfiguredPath(startBeatId) {
 }
 
 function startConfiguredExperience() {
+  localAppResultContext = null;
   const root = configuredRoot();
   if (!root || pathNeedsLlm(root.id)) {
     showWaiting();
@@ -1182,15 +1201,12 @@ function completeLocalConfiguredApp(output = null) {
   closeConfiguredApp(false);
   if (isRecord(output)) {
     const inferredTarget = nextConfiguredBeat(beat);
-    const resolution = resolveConfiguredGameResult(
-      output,
-      beat,
-      inferredTarget?.id ?? null,
-    );
+    const resolution = resolveConfiguredAppResult(output, inferredTarget?.id ?? null);
     if (!resolution) {
       showError(copy.appResultInvalid);
       return;
     }
+    localAppResultContext = resolution.result;
     renderGameResult(resolution.result, resolution.nextBeatId, config);
     return;
   }
@@ -1339,11 +1355,6 @@ function initialize(message) {
   assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   linkedBeatIds = new Set(beats.flatMap((beat) => [
     ...(typeof beat.nextBeatId === "string" ? [beat.nextBeatId] : []),
-    ...(Array.isArray(beat.action?.resultRoutes)
-      ? beat.action.resultRoutes.flatMap((route) => (
-          typeof route?.nextBeatId === "string" ? [route.nextBeatId] : []
-        ))
-      : []),
     ...(Array.isArray(beat.choices?.options)
       ? beat.choices.options.flatMap((option) => (
           typeof option?.nextBeatId === "string" ? [option.nextBeatId] : []
