@@ -130,11 +130,13 @@ App SDK 维护统一的已知扩展注册表；App 的 `kind` 不决定 extensio
 
 | 当前 Host profile | 当前提供的 `runtime.extensions` |
 |---|---|
-| Chat Game Host | `character`、`checkpoint`、`dialogue`、`media`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
-| World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`media`、`persona`、`speech`、`storage`、`world` |
+| Chat Game Host | `character`、`checkpoint`、`dialogue`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
+| World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
 | World Nested App Host | `checkpoint`、`progress`、`resize` |
 
 `episodeRenderer` 是 World catalog 能力，不是 runtime extension；使用 Episode 消息的 App 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现，不是 SDK 对 Game 的永久限制。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
+
+`memory` 和 `footprint` 分别读取当前人物卡的长期记忆与互动足迹。App 必须同时声明同名 runtime extension 和 context scope；Host 会把读取固定到当前人物卡与已登录用户，App 不传 `characterId`，也不会收到账号 ID 或来源会话 ID。
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 
