@@ -126,14 +126,15 @@ Storyteller `1.1.10` 已在 manifest 中声明并在 `src/app.js` 中实际使�
 
 `runtime.input` 和 `runtime.outputs` 是版本化 contract；`runtime.extensions` 只声明 App 确实消费的可选能力。
 
-SDK `2.2.1` 通过 `@dokiworld/app-sdk/runtime-extensions` 公开并由 Host catalog 强制执行 surface 能力矩阵：
+App SDK 维护统一的已知扩展注册表；App 的 `kind` 不决定 extension 是否合法。Catalog 只拒绝未知扩展，真正启动时由当前 Host capability profile 判断是否兼容：
 
-| Surface | 允许的 `runtime.extensions` |
+| 当前 Host profile | 当前提供的 `runtime.extensions` |
 |---|---|
-| Game | `character`、`checkpoint`、`dialogue`、`media`、`persona`、`progress`、`resize`、`speech`、`storage` |
-| World | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`media`、`persona`、`speech`、`storage`、`world` |
+| Chat Game Host | `character`、`checkpoint`、`dialogue`、`media`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
+| World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`media`、`persona`、`speech`、`storage`、`world` |
+| World Nested App Host | `checkpoint`、`progress`、`resize` |
 
-`episodeRenderer` 是 World catalog 能力，不是 runtime extension；使用 Episode 消息的 World 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。Game 不得声明 `apps` 或其他仅 World 支持的能力，World 不得声明仅 Game 支持的 `progress`、`resize`。
+`episodeRenderer` 是 World catalog 能力，不是 runtime extension；使用 Episode 消息的 App 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现，不是 SDK 对 Game 的永久限制。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 
