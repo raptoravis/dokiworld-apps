@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 2,
+  "version": "0.1.0",
+  "id": "tower-confessions",
+  "kind": "game",
+  "status": "active",
+  "capability": "game.social.truth-dare-tower",
+  "entry": "index.html",
+  "launchRequirements": {
+    "minPlayers": 2
+  },
+  "context": {
+    "requiredScopes": ["character.identity"],
+    "optionalScopes": ["character.avatar", "character.card", "player_persona"]
+  },
+  "locales": {
+    "en": {
+      "name": "Tower of Truth",
+      "description": "Pull blocks with your companion. Every risky move reveals a truth or dare, and one trembling choice decides the round.",
+      "aliases": ["Tower of Truth", "Jenga", "truth or dare", "block tower"]
+    },
+    "zh-cn": {
+      "name": "心动叠叠乐",
+      "description": "和角色轮流抽取木块；每次冒险都会揭开真心话或大冒险，一次颤抖的选择决定本局结果。",
+      "aliases": ["心动叠叠乐", "叠叠乐", "真心话大冒险", "抽木块"]
+    }
+  },
+  "selection": {
+    "activationPolicy": "explicit-or-contextual",
+    "tags": ["social", "truth-or-dare", "companion"],
+    "intents": ["play.truth-dare", "play.block-tower"],
+    "promptHint": {
+      "en": "Use when the player asks for Jenga, a block-tower game, truth or dare, or a playful intimate challenge with the current character.",
+      "zh-cn": "玩家想玩叠叠乐、抽木块、真心话大冒险，或想和当前角色进行轻松亲密的互动挑战时使用。"
+    },
+    "avoidHint": {
+      "en": "Do not launch for ordinary mentions of wooden furniture, towers, or honesty outside a game request.",
+      "zh-cn": "普通对话中仅提到木制家具、高塔或诚实时不要拉起。"
+    }
+  },
+  "runtime": {
+    "protocol": "dokiworld.app",
+    "protocolVersion": 2,
+    "input": {
+      "contract": "doki.game.tower-confessions-input",
+      "version": 1
+    },
+    "outputs": [{ "contract": "doki.game.result", "version": 1 }],
+    "extensions": [
+      "character",
+      "dialogue",
+      "media",
+      "persona",
+      "progress",
+      "resize",
+      "speech",
+      "storage"
+    ]
+  },
+  "result": {
+    "metrics": [
+      "winner",
+      "pulls",
+      "towerStability",
+      "truthsAnswered",
+      "daresCompleted",
+      "lastChallenge",
+      "relationshipSignal"
+    ]
+  }
+}

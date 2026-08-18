@@ -1,0 +1,19 @@
+{
+  "name": "@dokiworld-apps/tower-confessions",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "tsc -p tsconfig.json --noEmit && vitest run"
+  },
+  "dependencies": {
+    "@dokiworld/app-sdk": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "vitest": "^3.2.4",
+    "vite": "^6.0.5",
+    "typescript": "^5.7.2"
+  }
+}
