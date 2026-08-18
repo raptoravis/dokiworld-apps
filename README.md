@@ -8,9 +8,10 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用�
 
 | 目录 | 版本 | 类型 | SDK 集成 |
 |---|---:|---|---|
-| `game-match3` | `1.0.4` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
-| `banquet-contract` | `1.0.4` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.8` | World App | 使用 Episode、Dialogue 及 SDK 2.1 capabilities 渲染互动剧集和消费 Game 结算 |
+| `game-match3` | `1.0.5` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
+| `banquet-contract` | `1.0.5` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
+| `storyteller` | `1.1.10` | World App | 使用 Episode、Dialogue 及类型化 capabilities 渲染互动剧集和消费 Game 结算 |
+| `tower-confessions` | `0.1.0` | Game App | 使用角色、对话、媒体、Persona、语音与存储能力实现叠叠乐互动体验 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
 
@@ -27,7 +28,7 @@ Storyteller、Banquet Contract 和 Heartline Match 均通过以下依赖引用�
 ```json
 {
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.1.0"
+    "@dokiworld/app-sdk": "^2.2.1"
   }
 }
 ```
@@ -58,7 +59,7 @@ npm run build
 本地 `file:` 形式要求三个仓库保持当前相邻目录结构，仅适用于本地联调。完成联调后，用下面的命令恢复公共 npm 包并刷新 lockfile：
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.1.0" --save
+npm install "@dokiworld/app-sdk@^2.2.1" --save
 ```
 
 提交和发布 App 时默认应保留公共 semver 依赖；不要提交指向开发者本机目录结构的 `file:` lockfile。
@@ -81,9 +82,9 @@ Storyteller 使用 `@dokiworld/app-sdk/dialogue`，不再直接依赖 DokiWorld 
 
 SDK 负责请求 ID、并发响应关联、运行时校验、超时和稳定错误码；认证及后端访问保留在 DokiWorld Host 内。
 
-### SDK 2.1 capabilities
+### 类型化 capabilities
 
-Storyteller `1.1.6` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
+Storyteller `1.1.10` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
 
 | 扩展名 | SDK 入口 | Storyteller 中的用途 |
 |---|---|---|
@@ -124,6 +125,15 @@ Storyteller `1.1.6` 已在 manifest 中声明并在 `src/app.js` 中实际使用
 ```
 
 `runtime.input` 和 `runtime.outputs` 是版本化 contract；`runtime.extensions` 只声明 App 确实消费的可选能力。
+
+SDK `2.2.1` 通过 `@dokiworld/app-sdk/runtime-extensions` 公开并由 Host catalog 强制执行 surface 能力矩阵：
+
+| Surface | 允许的 `runtime.extensions` |
+|---|---|
+| Game | `character`、`checkpoint`、`dialogue`、`media`、`persona`、`progress`、`resize`、`speech`、`storage` |
+| World | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`media`、`persona`、`speech`、`storage`、`world` |
+
+`episodeRenderer` 是 World catalog 能力，不是 runtime extension；使用 Episode 消息的 World 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。Game 不得声明 `apps` 或其他仅 World 支持的能力，World 不得声明仅 Game 支持的 `progress`、`resize`。
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 

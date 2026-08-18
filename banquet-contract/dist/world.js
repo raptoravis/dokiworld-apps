@@ -163,7 +163,19 @@ function parseExternalAppRequestExitMessage(value, expected) {
 function parseExternalAppExitStateMessage(value, expected) {
   const message = parseExternalAppSessionMessage(value, expected);
   if (!message || message.type !== "dokiworld-app-exit-state" || typeof message.payload.isDirty !== "boolean" || typeof message.payload.canSuspend !== "boolean") return null;
-  return { ...message, type: "dokiworld-app-exit-state", payload: { isDirty: message.payload.isDirty, canSuspend: message.payload.canSuspend } };
+  const output = message.payload.output;
+  if (output !== void 0 && (!isContract(output) || !("data" in output) || !isBoundedJson(output.data))) return null;
+  return {
+    ...message,
+    type: "dokiworld-app-exit-state",
+    payload: {
+      isDirty: message.payload.isDirty,
+      canSuspend: message.payload.canSuspend,
+      ...output === void 0 ? {} : {
+        output: { contract: output.contract, version: output.version, data: output.data }
+      }
+    }
+  };
 }
 function createReadyMessage(appId, instanceId) {
   if (!isBoundedId(appId) || !isBoundedId(instanceId)) throw new Error("Invalid external app bootstrap identity");
@@ -265,7 +277,15 @@ function createAppClient({
     if (message.type === "dokiworld-app-prepare-exit") {
       try {
         const state = await handlers.onPrepareExit?.(message.payload.reason) ?? { isDirty: false, canSuspend: false };
-        sendSession("dokiworld-app-exit-state", { isDirty: Boolean(state.isDirty), canSuspend: Boolean(state.canSuspend) });
+        const output = state.output;
+        if (output !== void 0 && (!isContract(output) || !("data" in output) || !isBoundedJson(output.data))) {
+          throw new Error("Invalid app exit output");
+        }
+        sendSession("dokiworld-app-exit-state", {
+          isDirty: Boolean(state.isDirty),
+          canSuspend: Boolean(state.canSuspend),
+          ...output === void 0 ? {} : { output }
+        });
       } catch (error) {
         handlers.onError?.(error);
         sendSession("dokiworld-app-exit-state", { isDirty: true, canSuspend: false });
@@ -452,6 +472,12 @@ function createAppHost({
       const state = parseExternalAppExitStateMessage(event.data, identity());
       if (state && pendingExit) {
         clearTimeout(pendingExit.timer);
+        if (state.payload.output && !outputs.some((candidate) => candidate.contract === state.payload.output.contract && candidate.version === state.payload.output.version)) {
+          const reject = pendingExit.reject;
+          pendingExit = null;
+          reject(new Error("The app returned an undeclared exit output"));
+          return;
+        }
         const resolve = pendingExit.resolve;
         pendingExit = null;
         resolve(state.payload);
@@ -524,6 +550,50 @@ function createAppHost({
   });
 }
 
+// node_modules/@dokiworld/app-sdk/src/game-result.js
+var GAME_RESULT_CONTRACT = "doki.game.result";
+var GAME_RESULT_VERSION = 1;
+var GAME_SCORE_MAX = 100;
+var GAME_RESULT_OUTPUT = Object.freeze({
+  contract: GAME_RESULT_CONTRACT,
+  version: GAME_RESULT_VERSION
+});
+var MAX_METRIC_COUNT = 12;
+var MAX_METRIC_KEY_LENGTH = 48;
+var MAX_METRIC_STRING_LENGTH = 160;
+var MAX_METRIC_NUMBER = 1e12;
+var OUTCOMES = /* @__PURE__ */ new Set(["win", "loss", "draw", "completed", "exited"]);
+var isRecord2 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+function sanitizeMetrics(value) {
+  if (!isRecord2(value)) return Object.freeze({});
+  const metrics = {};
+  for (const [rawKey, rawValue] of Object.entries(value)) {
+    if (Object.keys(metrics).length >= MAX_METRIC_COUNT) break;
+    const key = rawKey.trim();
+    if (!key || key.length > MAX_METRIC_KEY_LENGTH) continue;
+    if (typeof rawValue === "boolean") metrics[key] = rawValue;
+    else if (typeof rawValue === "number" && Number.isFinite(rawValue) && Math.abs(rawValue) <= MAX_METRIC_NUMBER) metrics[key] = rawValue;
+    else if (typeof rawValue === "string") metrics[key] = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_METRIC_STRING_LENGTH);
+  }
+  return Object.freeze(metrics);
+}
+function parseData(value, strictOutcome) {
+  if (!isRecord2(value)) return null;
+  const normalizedScore = value.normalizedScore;
+  if (!Number.isInteger(normalizedScore) || normalizedScore < 0 || normalizedScore > GAME_SCORE_MAX) return null;
+  const outcome = value.outcome === void 0 ? "completed" : OUTCOMES.has(value.outcome) ? value.outcome : strictOutcome ? null : "completed";
+  if (!outcome) return null;
+  return Object.freeze({
+    normalizedScore,
+    outcome,
+    metrics: sanitizeMetrics(value.metrics)
+  });
+}
+function parseGameResult(output) {
+  if (!isRecord2(output) || output.contract !== GAME_RESULT_CONTRACT || output.version !== GAME_RESULT_VERSION) return null;
+  return parseData(output.data, false);
+}
+
 // node_modules/@dokiworld/app-sdk/src/episode.js
 var CLIENT_WIRE_TYPES = Object.freeze({
   "episode.start": "dokiworld-app-episode-start",
@@ -532,6 +602,7 @@ var CLIENT_WIRE_TYPES = Object.freeze({
   "episode.reply": "dokiworld-app-episode-reply",
   "episode.action": "dokiworld-app-episode-action",
   "episode.gameResult": "dokiworld-app-episode-game-result",
+  "episode.gameCompleted": "dokiworld-app-episode-game-completed",
   "chat.regenerate": "dokiworld-app-chat-regenerate",
   "chat.suggest": "dokiworld-app-chat-suggest",
   "chat.generateMedia": "dokiworld-app-chat-generate-media"
@@ -548,9 +619,9 @@ var HOST_WIRE_TYPES = Object.freeze({
   "chat.media": "dokiworld-app-chat-media",
   "chat.mediaError": "dokiworld-app-chat-media-error"
 });
-var isRecord2 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+var isRecord3 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString = (value) => typeof value === "string";
-var isOptionalRecord = (value) => value === void 0 || value === null || isRecord2(value);
+var isOptionalRecord = (value) => value === void 0 || value === null || isRecord3(value);
 var noPayload = (payload) => Object.keys(payload).length === 0;
 var CLIENT_VALIDATORS = Object.freeze({
   "episode.start": noPayload,
@@ -558,7 +629,8 @@ var CLIENT_VALIDATORS = Object.freeze({
   "episode.choice": (payload) => isString(payload.beatId) && isString(payload.optionId),
   "episode.reply": (payload) => isString(payload.playerInput) && isOptionalRecord(payload.playerPersona),
   "episode.action": (payload) => isString(payload.beatId),
-  "episode.gameResult": (payload) => (payload.configId === void 0 || isString(payload.configId)) && isRecord2(payload.result),
+  "episode.gameResult": (payload) => (payload.configId === void 0 || isString(payload.configId)) && isRecord3(payload.result),
+  "episode.gameCompleted": (payload) => (payload.configId === void 0 || isString(payload.configId)) && parseGameResult(payload.output) !== null,
   "chat.regenerate": (payload) => isOptionalRecord(payload.playerPersona),
   "chat.suggest": (payload) => isOptionalRecord(payload.playerPersona),
   "chat.generateMedia": (payload) => ["image", "video"].includes(payload.mediaType) && isOptionalRecord(payload.playerPersona)
@@ -567,9 +639,9 @@ var HOST_VALIDATORS = Object.freeze({
   "episode.content": (payload) => Array.isArray(payload.utterances),
   "episode.resuming": noPayload,
   "episode.error": (payload) => isString(payload.code),
-  "episode.game": (payload) => isRecord2(payload.gameConfig),
-  "episode.fixedGameResult": (payload) => isRecord2(payload.result),
-  "episode.gameResolved": (payload) => isRecord2(payload.result) && Array.isArray(payload.utterances),
+  "episode.game": (payload) => isRecord3(payload.gameConfig),
+  "episode.fixedGameResult": (payload) => isRecord3(payload.result),
+  "episode.gameResolved": (payload) => isRecord3(payload.result) && Array.isArray(payload.utterances),
   "chat.regenerated": (payload) => Array.isArray(payload.utterances),
   "chat.suggestions": (payload) => Array.isArray(payload.suggestions) && payload.suggestions.every(isString),
   "chat.media": (payload) => ["image", "video"].includes(payload.mediaType) && isString(payload.url),
@@ -581,7 +653,7 @@ function reverseTypes(types) {
 var CLIENT_SEMANTIC_TYPES = reverseTypes(CLIENT_WIRE_TYPES);
 var HOST_SEMANTIC_TYPES = reverseTypes(HOST_WIRE_TYPES);
 function splitEvent(event) {
-  if (!isRecord2(event) || !isString(event.type)) return null;
+  if (!isRecord3(event) || !isString(event.type)) return null;
   const { type, ...payload } = event;
   return { type, payload };
 }
@@ -596,7 +668,7 @@ function createDirectionalExtension(channel, outgoingTypes, outgoingValidators, 
       return channel.send(wireType, parsed.payload);
     },
     receive(message) {
-      if (!isRecord2(message) || !isString(message.type) || !isRecord2(message.payload)) return null;
+      if (!isRecord3(message) || !isString(message.type) || !isRecord3(message.payload)) return null;
       const semanticType = incomingTypes[message.type];
       const validate = semanticType && incomingValidators[semanticType];
       if (!semanticType || !validate?.(message.payload)) return null;
