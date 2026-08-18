@@ -12,6 +12,6 @@
     "esbuild": "^0.25.0"
   },
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.0.0"
+    "@dokiworld/app-sdk": "^2.2.0"
   }
 }

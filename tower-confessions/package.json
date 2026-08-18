@@ -8,7 +8,7 @@
     "test": "tsc -p tsconfig.json --noEmit && vitest run"
   },
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.1.0"
+    "@dokiworld/app-sdk": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
