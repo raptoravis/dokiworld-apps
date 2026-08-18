@@ -9,8 +9,8 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用�
 | 目录 | 版本 | 类型 | SDK 集成 |
 |---|---:|---|---|
 | `game-match3` | `1.0.5` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
-| `banquet-contract` | `1.0.5` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.10` | World App | 使用 Episode、Dialogue 及类型化 capabilities 渲染互动剧集和消费 Game 结算 |
+| `banquet-contract` | `1.0.6` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
+| `storyteller` | `1.1.11` | World App | 使用 Episode、Dialogue 及类型化 capabilities 渲染互动剧集和消费 Game 结算 |
 | `tower-confessions` | `0.1.0` | Game App | 使用角色、对话、媒体、Persona、语音与存储能力实现叠叠乐互动体验 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
@@ -84,7 +84,7 @@ SDK 负责请求 ID、并发响应关联、运行时校验、超时和稳定错�
 
 ### 类型化 capabilities
 
-Storyteller `1.1.10` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
+Storyteller `1.1.11` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
 
 | 扩展名 | SDK 入口 | Storyteller 中的用途 |
 |---|---|---|
@@ -178,11 +178,11 @@ Game 与 World 都使用 `dokiworld.app/2`，但 catalog 当前接受的 manifes
 | 项目 | Game | World |
 |---|---|---|
 | `kind` | `game` | `world` |
-| manifest schema | 新 App 使用 `schemaVersion: 2` | 当前使用 `schemaVersion: 1` |
+| manifest schema | `schemaVersion: 2` | `schemaVersion: 2` |
 | 最小玩家数 | `launchRequirements.minPlayers` 至少为 `2` | 通常为 `1` |
 | input contract | 例如 `doki.game.<id>-input` | 例如 `doki.world.<id>-input` |
 | output contract | 通常为 `doki.game.result` 或专用结果 | 通常为 `doki.world.session-result` |
-| context scopes | `context.requiredScopes` / `optionalScopes` | `contextScopes.required` / `optional` |
+| context scopes | `context.requiredScopes` / `optionalScopes` | `context.requiredScopes` / `optionalScopes` |
 | catalog 注册 | 无需额外注册文件，由 Game manifest 自动发现 | 本地同步后由 World catalog 自动发现 |
 
 两类 App 的 `runtime` 都必须声明：

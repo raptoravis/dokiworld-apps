@@ -1,12 +1,11 @@
 {
-  "schemaVersion": 1,
-  "version": "1.0.5",
+  "schemaVersion": 2,
+  "version": "1.0.6",
   "id": "banquet-contract",
   "kind": "world",
   "status": "active",
   "entry": "index.html",
   "cover": "ui/adrian-portrait.png",
-  "protocolVersion": 2,
   "runtime": {
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
@@ -29,9 +28,9 @@
   "launchRequirements": {
     "minPlayers": 1
   },
-  "contextScopes": {
-    "required": [],
-    "optional": []
+  "context": {
+    "requiredScopes": [],
+    "optionalScopes": []
   },
   "locales": {
     "en": {

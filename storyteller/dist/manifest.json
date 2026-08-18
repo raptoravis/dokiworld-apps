@@ -1,11 +1,10 @@
 {
-  "schemaVersion": 1,
-  "version": "1.1.10",
+  "schemaVersion": 2,
+  "version": "1.1.11",
   "id": "storyteller",
   "kind": "world",
   "status": "active",
   "entry": "index.html",
-  "protocolVersion": 2,
   "runtime": {
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
@@ -37,9 +36,9 @@
   "launchRequirements": {
     "minPlayers": 1
   },
-  "contextScopes": {
-    "required": [],
-    "optional": [
+  "context": {
+    "requiredScopes": [],
+    "optionalScopes": [
       "character.identity",
       "character.avatar",
       "character.card",

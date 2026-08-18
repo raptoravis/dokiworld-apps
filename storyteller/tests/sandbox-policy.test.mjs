@@ -53,8 +53,11 @@ test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
   assert.match(source, /type:\s*"episode\.gameCompleted"/);
   assert.doesNotMatch(source, /type:\s*"episode\.gameResult"/);
   assert.doesNotMatch(source, /type:\s*"chat\.generateMedia"/);
-  assert.ok(manifest.contextScopes.optional.includes("character.card"));
-  assert.ok(manifest.contextScopes.optional.includes("player_persona"));
+  assert.equal(manifest.schemaVersion, 2);
+  assert.equal(manifest.protocolVersion, undefined);
+  assert.equal(manifest.runtime.protocolVersion, 2);
+  assert.ok(manifest.context.optionalScopes.includes("character.card"));
+  assert.ok(manifest.context.optionalScopes.includes("player_persona"));
 });
 
 test("wide Storyteller dialogue does not recreate the empty dark column", async () => {
