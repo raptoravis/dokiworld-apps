@@ -16,7 +16,7 @@ It bundles `@dokiworld/app-sdk` and uses `createAppClient` with the
 
 ## SDK dependency source
 
-The project uses the published `@dokiworld/app-sdk@^2.2.1` package by default. When developing an unpublished SDK change, it can temporarily use a sibling checkout of `dokiworld.git`:
+The project uses the published `@dokiworld/app-sdk@^3.0.0` package by default. When developing an unpublished SDK change, it can temporarily use a sibling checkout of `dokiworld.git`:
 
 ```json
 {
@@ -31,6 +31,6 @@ Run `npm install` after changing the dependency so that `package-lock.json` and 
 Before committing or publishing the App, restore the public package and refresh the lockfile:
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.2.1" --save
+npm install "@dokiworld/app-sdk@^3.0.0" --save
 ```
 

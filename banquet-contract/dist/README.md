@@ -9,7 +9,7 @@ The project uses the public npm package by default:
 ```json
 {
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.2.1"
+    "@dokiworld/app-sdk": "^3.0.0"
   }
 }
 ```
@@ -39,5 +39,5 @@ Run `npm install` after changing the dependency so that `package-lock.json` and 
 Before committing or publishing the App, restore the public package and refresh the lockfile:
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.2.1" --save
+npm install "@dokiworld/app-sdk@^3.0.0" --save
 ```

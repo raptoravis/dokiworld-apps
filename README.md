@@ -28,7 +28,7 @@ Storyteller、Banquet Contract 和 Heartline Match 均通过以下依赖引用�
 ```json
 {
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.2.1"
+    "@dokiworld/app-sdk": "^3.0.0"
   }
 }
 ```
@@ -59,7 +59,7 @@ npm run build
 本地 `file:` 形式要求三个仓库保持当前相邻目录结构，仅适用于本地联调。完成联调后，用下面的命令恢复公共 npm 包并刷新 lockfile：
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.2.1" --save
+npm install "@dokiworld/app-sdk@^3.0.0" --save
 ```
 
 提交和发布 App 时默认应保留公共 semver 依赖；不要提交指向开发者本机目录结构的 `file:` lockfile。

@@ -17,7 +17,7 @@ Storyteller uses the published App SDK package by default:
 ```json
 {
   "dependencies": {
-    "@dokiworld/app-sdk": "^2.2.1"
+    "@dokiworld/app-sdk": "^3.0.0"
   }
 }
 ```
@@ -49,5 +49,5 @@ Run `npm install` after changing the dependency so that `package-lock.json` and 
 To switch back to the registry package after local SDK development, refresh the dependency and lockfile:
 
 ```powershell
-npm install "@dokiworld/app-sdk@^2.2.1" --save
+npm install "@dokiworld/app-sdk@^3.0.0" --save
 ```
