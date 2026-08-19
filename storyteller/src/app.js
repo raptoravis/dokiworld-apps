@@ -91,6 +91,7 @@ const COPY = {
     resultCleared: "Cleared",
     resultBestCascade: "Best cascade",
     continueAfterGame: "Continue story",
+    continueAfterGamePrompt: "Continue the story naturally from this moment.",
   },
   "zh-cn": {
     waiting: "正在准备你的故事…",
@@ -162,6 +163,7 @@ const COPY = {
     resultCleared: "消除数量",
     resultBestCascade: "最高连击",
     continueAfterGame: "继续剧情",
+    continueAfterGamePrompt: "请从这一刻自然地继续剧情。",
   },
 };
 
@@ -264,6 +266,8 @@ let linkedBeatIds = new Set();
 let localActionBeat = null;
 let localAppResultContext = null;
 let hostedResultPending = false;
+let hostedResultStreamedKeys = [];
+let hostedResultCard = null;
 let playerPersona = null;
 let activeVideo = null;
 let activeImage = null;
@@ -843,6 +847,25 @@ async function submitReply(value) {
   }
 }
 
+async function requestStoryContinuation() {
+  if (waitingForHost) return;
+  showChatWaiting();
+  try {
+    const response = await dialogue.generateDialogue({
+      characterId: experience?.characterId || "",
+      playerInput: copy.continueAfterGamePrompt,
+      sessionId: dialogueSessionId,
+      inputMode: "speech",
+      playerPersona,
+    });
+    dialogueSessionId = response.sessionId;
+    savePlatformCheckpoint();
+    acceptEpisode(response.utterances);
+  } catch {
+    showError();
+  }
+}
+
 async function regenerateLatestDialogue() {
   showChatWaiting();
   try {
@@ -1011,6 +1034,8 @@ async function openConfiguredApp(config) {
   }
   try {
     hostedResultPending = false;
+    hostedResultStreamedKeys = [];
+    hostedResultCard = null;
     elements.shell.dataset.phase = "app";
     const app = await findConfiguredApp(gameId);
     const runtime = isRecord(app.runtime) ? app.runtime : {};
@@ -1035,6 +1060,20 @@ async function openConfiguredApp(config) {
     activeApp = null;
     showError(copy.appUnavailable);
   }
+}
+
+function attachGameResultContinue(card, onContinue) {
+  if (!(card instanceof HTMLElement) || typeof onContinue !== "function") return;
+  if (card.querySelector(".game-result-continue")) return;
+  const next = document.createElement("button");
+  next.className = "game-result-continue";
+  next.type = "button";
+  next.textContent = `${copy.continueAfterGame}  →`;
+  next.addEventListener("click", () => {
+    next.disabled = true;
+    onContinue();
+  }, { once: true });
+  card.append(next);
 }
 
 function renderGameResult(result, nextBeatId, config, onContinue = null) {
@@ -1079,20 +1118,13 @@ function renderGameResult(result, nextBeatId, config, onContinue = null) {
   card.append(kicker, title, summary);
   if (metricList.childElementCount > 0) card.append(metricList);
   const target = typeof nextBeatId === "string" ? beatsById.get(nextBeatId) || null : null;
-  if (target || typeof onContinue === "function") {
-    const next = document.createElement("button");
-    next.className = "game-result-continue";
-    next.type = "button";
-    next.textContent = `${copy.continueAfterGame}  →`;
-    next.addEventListener("click", () => {
-      next.disabled = true;
-      if (typeof onContinue === "function") onContinue();
-      else playConfiguredPath(target.id);
-    }, { once: true });
-    card.append(next);
-  }
+  if (target || typeof onContinue === "function") attachGameResultContinue(
+    card,
+    typeof onContinue === "function" ? onContinue : () => playConfiguredPath(target.id),
+  );
   elements.lines.append(card);
   elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+  return card;
 }
 
 function replayCompletedImage(item) {
@@ -1184,7 +1216,7 @@ function settleActiveGameResult(current, output) {
     output,
   });
   closeConfiguredApp(false);
-  renderGameResult(result, null, config);
+  hostedResultCard = renderGameResult(result, null, config);
 }
 
 function closeConfiguredApp(resume = true) {
@@ -1216,19 +1248,132 @@ function completeLocalConfiguredApp(output = null) {
   else showEnd();
 }
 
-function completeHostedConfiguredApp(result, utterances = null) {
+function streamedResolutionKey(segment) {
+  return `${segment?.type || ""}\u0000${segment?.text || ""}`;
+}
+
+function appendHostedResolutionPartial(result, utterances) {
+  const interpolated = interpolateAppResultUtterances(utterances, result);
+  const items = episodeItems(interpolated).filter(({ segment }) => (
+    ["dialogue", "action", "thought", "narration"].includes(segment.type)
+    && typeof segment.text === "string"
+    && segment.text.trim()
+  ));
+  if (!items.length) return;
+  showDialogueHistory();
+  items.forEach((item) => {
+    hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
+    const speakerName = item.speakerName || experience?.title || copy.kicker;
+    let group = elements.lines.lastElementChild;
+    let bubble = group?.querySelector?.(".message-bubble");
+    if (
+      !group?.classList?.contains("is-game-resolution-stream")
+      || group.dataset.speaker !== speakerName
+      || !bubble
+    ) {
+      group = document.createElement("article");
+      group.className = "message-group is-ai is-game-resolution-stream";
+      group.dataset.speaker = speakerName;
+      if (experience?.avatarUrl) {
+        const avatar = document.createElement("img");
+        avatar.className = "message-avatar";
+        avatar.src = experience.avatarUrl;
+        avatar.alt = "";
+        group.append(avatar);
+      }
+      const content = document.createElement("div");
+      content.className = "message-content";
+      const heading = document.createElement("div");
+      heading.className = "message-heading";
+      const speaker = document.createElement("p");
+      speaker.className = "speaker";
+      speaker.textContent = speakerName;
+      const play = document.createElement("button");
+      play.className = "message-play";
+      play.type = "button";
+      play.textContent = "▶";
+      play.setAttribute("aria-label", copy.playMessage);
+      heading.append(speaker, play);
+      bubble = document.createElement("div");
+      bubble.className = "message-bubble";
+      bubble.append(heading);
+      play.addEventListener("click", () => {
+        const text = [...bubble.querySelectorAll(".line")]
+          .map((line) => line.textContent || "")
+          .join(" ");
+        speak(text, true);
+      });
+      content.append(bubble);
+      group.append(content);
+      elements.lines.append(group);
+    }
+    const line = document.createElement("p");
+    line.className = `line ${item.segment.type}`;
+    line.textContent = item.segment.text;
+    bubble.append(line);
+  });
+  elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+}
+
+function removeStreamedResolutionSegments(utterances) {
+  let streamedIndex = 0;
+  return utterances
+    .map((utterance) => ({
+      ...utterance,
+      segments: Array.isArray(utterance?.segments)
+        ? utterance.segments.filter((segment) => {
+            if (
+              streamedIndex < hostedResultStreamedKeys.length
+              && streamedResolutionKey(segment) === hostedResultStreamedKeys[streamedIndex]
+            ) {
+              streamedIndex += 1;
+              return false;
+            }
+            return true;
+          })
+        : [],
+    }))
+    .filter((utterance) => utterance.segments.length > 0);
+}
+
+function completeHostedConfiguredApp(result, utterances = null, partial = false) {
+  if (partial) {
+    appendHostedResolutionPartial(result, utterances);
+    return;
+  }
   const interpolatedUtterances = Array.isArray(utterances)
     ? interpolateAppResultUtterances(utterances, result)
     : null;
+  const remainingUtterances = interpolatedUtterances
+    ? removeStreamedResolutionSegments(interpolatedUtterances)
+    : null;
+  const hadStreamedSegments = hostedResultStreamedKeys.length > 0;
+  hostedResultStreamedKeys = [];
   if (hostedResultPending) {
     hostedResultPending = false;
-    if (interpolatedUtterances) acceptEpisode(interpolatedUtterances);
-    else showDialogueHistory();
+    const resultCard = hostedResultCard;
+    hostedResultCard = null;
+    if (hadStreamedSegments) {
+      queue = remainingUtterances?.length ? episodeItems(remainingUtterances) : [];
+      totalSegments = Math.max(1, presentedSegments + queue.length);
+      waitingForHost = false;
+      attachGameResultContinue(resultCard, () => {
+        if (queue.length) renderNext();
+        else void requestStoryContinuation();
+      });
+      showDialogueHistory();
+    } else if (remainingUtterances?.length) {
+      attachGameResultContinue(resultCard, () => acceptEpisode(remainingUtterances));
+      showDialogueHistory();
+    } else {
+      attachGameResultContinue(resultCard, () => void requestStoryContinuation());
+      showDialogueHistory();
+    }
     return;
   }
   const config = activeApp?.config || pendingAction?.gameConfig || {};
-  const continueWithNarrative = interpolatedUtterances
-    ? () => acceptEpisode(interpolatedUtterances)
+  const continueWithNarrative = remainingUtterances?.length
+    ? () => acceptEpisode(remainingUtterances)
     : null;
   closeConfiguredApp(false);
   renderGameResult(result, null, config, continueWithNarrative);
@@ -1299,6 +1444,8 @@ function acceptEpisode(utterances) {
   pendingAction = null;
   localActionBeat = null;
   hostedResultPending = false;
+  hostedResultStreamedKeys = [];
+  hostedResultCard = null;
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -1317,6 +1464,8 @@ function restartEpisode() {
   pendingAction = null;
   localActionBeat = null;
   hostedResultPending = false;
+  hostedResultStreamedKeys = [];
+  hostedResultCard = null;
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -1622,7 +1771,9 @@ dokiworld.connect({
   }
   if (message.type === "episode.game" && pendingAction) void openConfiguredApp(message.gameConfig);
   if (message.type === "episode.fixedGameResult") completeHostedConfiguredApp(message.result);
-  if (message.type === "episode.gameResolved") completeHostedConfiguredApp(message.result, message.utterances);
+  if (message.type === "episode.gameResolved") {
+    completeHostedConfiguredApp(message.result, message.utterances, message.partial === true);
+  }
   if (message.type === "episode.error") showError();
   },
 });

@@ -33,6 +33,13 @@ test("Storyteller business code uses the typed SDK extension instead of wire mes
   assert.doesNotMatch(source, /dokiworld-app-(?:episode|chat)/);
 });
 
+test("Storyteller renders partial game resolution segments and removes them from the final payload", async () => {
+  const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  assert.match(source, /message\.partial === true/);
+  assert.match(source, /appendHostedResolutionPartial/);
+  assert.match(source, /removeStreamedResolutionSegments/);
+});
+
 test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
   const [manifest, source] = await Promise.all([
     readFile(new URL("../src/manifest.json", import.meta.url), "utf8").then(JSON.parse),
@@ -90,7 +97,7 @@ test("assistant identity is rendered inside every Storyteller message bubble", a
   const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 
   assert.equal(source.match(/bubble\.prepend\(heading\);/g)?.length, 4);
-  assert.equal(source.match(/content\.append\(bubble\);/g)?.length, 4);
+  assert.equal(source.match(/content\.append\(bubble\);/g)?.length, 5);
   assert.doesNotMatch(source, /content\.append\(heading, bubble\)/);
 });
 

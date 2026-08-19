@@ -953,7 +953,8 @@ var COPY = {
     resultMoves: "Moves",
     resultCleared: "Cleared",
     resultBestCascade: "Best cascade",
-    continueAfterGame: "Continue story"
+    continueAfterGame: "Continue story",
+    continueAfterGamePrompt: "Continue the story naturally from this moment."
   },
   "zh-cn": {
     waiting: "\u6B63\u5728\u51C6\u5907\u4F60\u7684\u6545\u4E8B\u2026",
@@ -1024,7 +1025,8 @@ var COPY = {
     resultMoves: "\u6B65\u6570",
     resultCleared: "\u6D88\u9664\u6570\u91CF",
     resultBestCascade: "\u6700\u9AD8\u8FDE\u51FB",
-    continueAfterGame: "\u7EE7\u7EED\u5267\u60C5"
+    continueAfterGame: "\u7EE7\u7EED\u5267\u60C5",
+    continueAfterGamePrompt: "\u8BF7\u4ECE\u8FD9\u4E00\u523B\u81EA\u7136\u5730\u7EE7\u7EED\u5267\u60C5\u3002"
   }
 };
 var elements = {
@@ -1125,6 +1127,8 @@ var linkedBeatIds = /* @__PURE__ */ new Set();
 var localActionBeat = null;
 var localAppResultContext = null;
 var hostedResultPending = false;
+var hostedResultStreamedKeys = [];
+var hostedResultCard = null;
 var playerPersona = null;
 var activeVideo = null;
 var activeImage = null;
@@ -1649,6 +1653,24 @@ async function submitReply(value) {
     showError();
   }
 }
+async function requestStoryContinuation() {
+  if (waitingForHost) return;
+  showChatWaiting();
+  try {
+    const response = await dialogue.generateDialogue({
+      characterId: experience?.characterId || "",
+      playerInput: copy.continueAfterGamePrompt,
+      sessionId: dialogueSessionId,
+      inputMode: "speech",
+      playerPersona
+    });
+    dialogueSessionId = response.sessionId;
+    savePlatformCheckpoint();
+    acceptEpisode(response.utterances);
+  } catch {
+    showError();
+  }
+}
 async function regenerateLatestDialogue() {
   showChatWaiting();
   try {
@@ -1793,6 +1815,8 @@ async function openConfiguredApp(config) {
   }
   try {
     hostedResultPending = false;
+    hostedResultStreamedKeys = [];
+    hostedResultCard = null;
     elements.shell.dataset.phase = "app";
     const app = await findConfiguredApp(gameId);
     const runtime = isRecord12(app.runtime) ? app.runtime : {};
@@ -1817,6 +1841,19 @@ async function openConfiguredApp(config) {
     activeApp = null;
     showError(copy.appUnavailable);
   }
+}
+function attachGameResultContinue(card, onContinue) {
+  if (!(card instanceof HTMLElement) || typeof onContinue !== "function") return;
+  if (card.querySelector(".game-result-continue")) return;
+  const next = document.createElement("button");
+  next.className = "game-result-continue";
+  next.type = "button";
+  next.textContent = `${copy.continueAfterGame}  \u2192`;
+  next.addEventListener("click", () => {
+    next.disabled = true;
+    onContinue();
+  }, { once: true });
+  card.append(next);
 }
 function renderGameResult(result2, nextBeatId, config, onContinue = null) {
   showDialogueHistory();
@@ -1856,20 +1893,13 @@ function renderGameResult(result2, nextBeatId, config, onContinue = null) {
   card.append(kicker, title, summary);
   if (metricList.childElementCount > 0) card.append(metricList);
   const target = typeof nextBeatId === "string" ? beatsById.get(nextBeatId) || null : null;
-  if (target || typeof onContinue === "function") {
-    const next = document.createElement("button");
-    next.className = "game-result-continue";
-    next.type = "button";
-    next.textContent = `${copy.continueAfterGame}  \u2192`;
-    next.addEventListener("click", () => {
-      next.disabled = true;
-      if (typeof onContinue === "function") onContinue();
-      else playConfiguredPath(target.id);
-    }, { once: true });
-    card.append(next);
-  }
+  if (target || typeof onContinue === "function") attachGameResultContinue(
+    card,
+    typeof onContinue === "function" ? onContinue : () => playConfiguredPath(target.id)
+  );
   elements.lines.append(card);
   elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+  return card;
 }
 function replayCompletedImage(item) {
   const src = safeUrl(item?.segment?.mediaUrl);
@@ -1957,7 +1987,7 @@ function settleActiveGameResult(current, output) {
     output
   });
   closeConfiguredApp(false);
-  renderGameResult(result2, null, config);
+  hostedResultCard = renderGameResult(result2, null, config);
 }
 function closeConfiguredApp(resume = true) {
   if (elements.appDialog.open) elements.appDialog.close();
@@ -1986,16 +2016,107 @@ function completeLocalConfiguredApp(output = null) {
   if (target) playConfiguredPath(target.id);
   else showEnd();
 }
-function completeHostedConfiguredApp(result2, utterances = null) {
+function streamedResolutionKey(segment) {
+  return `${segment?.type || ""}\0${segment?.text || ""}`;
+}
+function appendHostedResolutionPartial(result2, utterances) {
+  const interpolated = interpolateAppResultUtterances(utterances, result2);
+  const items = episodeItems(interpolated).filter(({ segment }) => ["dialogue", "action", "thought", "narration"].includes(segment.type) && typeof segment.text === "string" && segment.text.trim());
+  if (!items.length) return;
+  showDialogueHistory();
+  items.forEach((item) => {
+    hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
+    const speakerName = item.speakerName || experience?.title || copy.kicker;
+    let group = elements.lines.lastElementChild;
+    let bubble = group?.querySelector?.(".message-bubble");
+    if (!group?.classList?.contains("is-game-resolution-stream") || group.dataset.speaker !== speakerName || !bubble) {
+      group = document.createElement("article");
+      group.className = "message-group is-ai is-game-resolution-stream";
+      group.dataset.speaker = speakerName;
+      if (experience?.avatarUrl) {
+        const avatar = document.createElement("img");
+        avatar.className = "message-avatar";
+        avatar.src = experience.avatarUrl;
+        avatar.alt = "";
+        group.append(avatar);
+      }
+      const content = document.createElement("div");
+      content.className = "message-content";
+      const heading = document.createElement("div");
+      heading.className = "message-heading";
+      const speaker = document.createElement("p");
+      speaker.className = "speaker";
+      speaker.textContent = speakerName;
+      const play = document.createElement("button");
+      play.className = "message-play";
+      play.type = "button";
+      play.textContent = "\u25B6";
+      play.setAttribute("aria-label", copy.playMessage);
+      heading.append(speaker, play);
+      bubble = document.createElement("div");
+      bubble.className = "message-bubble";
+      bubble.append(heading);
+      play.addEventListener("click", () => {
+        const text = [...bubble.querySelectorAll(".line")].map((line2) => line2.textContent || "").join(" ");
+        speak(text, true);
+      });
+      content.append(bubble);
+      group.append(content);
+      elements.lines.append(group);
+    }
+    const line = document.createElement("p");
+    line.className = `line ${item.segment.type}`;
+    line.textContent = item.segment.text;
+    bubble.append(line);
+  });
+  elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+}
+function removeStreamedResolutionSegments(utterances) {
+  let streamedIndex = 0;
+  return utterances.map((utterance) => ({
+    ...utterance,
+    segments: Array.isArray(utterance?.segments) ? utterance.segments.filter((segment) => {
+      if (streamedIndex < hostedResultStreamedKeys.length && streamedResolutionKey(segment) === hostedResultStreamedKeys[streamedIndex]) {
+        streamedIndex += 1;
+        return false;
+      }
+      return true;
+    }) : []
+  })).filter((utterance) => utterance.segments.length > 0);
+}
+function completeHostedConfiguredApp(result2, utterances = null, partial = false) {
+  if (partial) {
+    appendHostedResolutionPartial(result2, utterances);
+    return;
+  }
   const interpolatedUtterances = Array.isArray(utterances) ? interpolateAppResultUtterances(utterances, result2) : null;
+  const remainingUtterances = interpolatedUtterances ? removeStreamedResolutionSegments(interpolatedUtterances) : null;
+  const hadStreamedSegments = hostedResultStreamedKeys.length > 0;
+  hostedResultStreamedKeys = [];
   if (hostedResultPending) {
     hostedResultPending = false;
-    if (interpolatedUtterances) acceptEpisode(interpolatedUtterances);
-    else showDialogueHistory();
+    const resultCard = hostedResultCard;
+    hostedResultCard = null;
+    if (hadStreamedSegments) {
+      queue = remainingUtterances?.length ? episodeItems(remainingUtterances) : [];
+      totalSegments = Math.max(1, presentedSegments + queue.length);
+      waitingForHost = false;
+      attachGameResultContinue(resultCard, () => {
+        if (queue.length) renderNext();
+        else void requestStoryContinuation();
+      });
+      showDialogueHistory();
+    } else if (remainingUtterances?.length) {
+      attachGameResultContinue(resultCard, () => acceptEpisode(remainingUtterances));
+      showDialogueHistory();
+    } else {
+      attachGameResultContinue(resultCard, () => void requestStoryContinuation());
+      showDialogueHistory();
+    }
     return;
   }
   const config = activeApp?.config || pendingAction?.gameConfig || {};
-  const continueWithNarrative = interpolatedUtterances ? () => acceptEpisode(interpolatedUtterances) : null;
+  const continueWithNarrative = remainingUtterances?.length ? () => acceptEpisode(remainingUtterances) : null;
   closeConfiguredApp(false);
   renderGameResult(result2, null, config, continueWithNarrative);
 }
@@ -2058,6 +2179,8 @@ function acceptEpisode(utterances) {
   pendingAction = null;
   localActionBeat = null;
   hostedResultPending = false;
+  hostedResultStreamedKeys = [];
+  hostedResultCard = null;
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -2075,6 +2198,8 @@ function restartEpisode() {
   pendingAction = null;
   localActionBeat = null;
   hostedResultPending = false;
+  hostedResultStreamedKeys = [];
+  hostedResultCard = null;
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -2361,7 +2486,9 @@ dokiworld.connect({
     }
     if (message.type === "episode.game" && pendingAction) void openConfiguredApp(message.gameConfig);
     if (message.type === "episode.fixedGameResult") completeHostedConfiguredApp(message.result);
-    if (message.type === "episode.gameResolved") completeHostedConfiguredApp(message.result, message.utterances);
+    if (message.type === "episode.gameResolved") {
+      completeHostedConfiguredApp(message.result, message.utterances, message.partial === true);
+    }
     if (message.type === "episode.error") showError();
   }
 });
