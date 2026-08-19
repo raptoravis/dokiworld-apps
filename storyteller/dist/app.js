@@ -954,7 +954,8 @@ var COPY = {
     resultCleared: "Cleared",
     resultBestCascade: "Best cascade",
     continueAfterGame: "Continue story",
-    continueAfterGamePrompt: "Continue the story naturally from this moment."
+    continueAfterGamePrompt: "Continue the story naturally from this moment.",
+    generatingGameResult: "Generating the story result\u2026"
   },
   "zh-cn": {
     waiting: "\u6B63\u5728\u51C6\u5907\u4F60\u7684\u6545\u4E8B\u2026",
@@ -1026,7 +1027,8 @@ var COPY = {
     resultCleared: "\u6D88\u9664\u6570\u91CF",
     resultBestCascade: "\u6700\u9AD8\u8FDE\u51FB",
     continueAfterGame: "\u7EE7\u7EED\u5267\u60C5",
-    continueAfterGamePrompt: "\u8BF7\u4ECE\u8FD9\u4E00\u523B\u81EA\u7136\u5730\u7EE7\u7EED\u5267\u60C5\u3002"
+    continueAfterGamePrompt: "\u8BF7\u4ECE\u8FD9\u4E00\u523B\u81EA\u7136\u5730\u7EE7\u7EED\u5267\u60C5\u3002",
+    generatingGameResult: "\u6B63\u5728\u751F\u6210\u5267\u60C5\u7ED3\u679C\u2026"
   }
 };
 var elements = {
@@ -1130,6 +1132,7 @@ var localAppResultContext = null;
 var hostedResultPending = false;
 var hostedResultStreamedKeys = [];
 var hostedResultCard = null;
+var hostedResultThinking = null;
 var playerPersona = null;
 var activeVideo = null;
 var activeImage = null;
@@ -1913,6 +1916,43 @@ function renderGameResult(result2, nextBeatId, config, onContinue = null) {
   elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
   return card;
 }
+function clearGameResultThinking() {
+  hostedResultThinking?.remove();
+  hostedResultThinking = null;
+}
+function renderGameResultThinking() {
+  clearGameResultThinking();
+  const group = document.createElement("article");
+  group.className = "message-group is-ai game-result-thinking";
+  if (experience?.avatarUrl) {
+    const avatar = document.createElement("img");
+    avatar.className = "message-avatar";
+    avatar.src = experience.avatarUrl;
+    avatar.alt = "";
+    group.append(avatar);
+  }
+  const content = document.createElement("div");
+  content.className = "message-content";
+  const speaker = document.createElement("p");
+  speaker.className = "speaker";
+  speaker.textContent = experience?.title || copy.kicker;
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble game-result-thinking-bubble";
+  bubble.setAttribute("role", "status");
+  bubble.setAttribute("aria-live", "polite");
+  bubble.setAttribute("aria-label", copy.generatingGameResult);
+  const dots = document.createElement("span");
+  dots.className = "game-result-thinking-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 3; index += 1) dots.append(document.createElement("i"));
+  bubble.append(dots);
+  content.append(speaker, bubble);
+  group.append(content);
+  elements.lines.append(group);
+  hostedResultThinking = group;
+  elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+  return group;
+}
 function replayCompletedImage(item) {
   const src = safeUrl(item?.segment?.mediaUrl);
   if (!src) return;
@@ -2000,6 +2040,7 @@ function settleActiveGameResult(current, output) {
   });
   closeConfiguredApp(false);
   hostedResultCard = renderGameResult(result2, null, config);
+  renderGameResultThinking();
 }
 function closeConfiguredApp(resume = true) {
   if (elements.appDialog.open) elements.appDialog.close();
@@ -2035,6 +2076,7 @@ function appendHostedResolutionPartial(result2, utterances) {
   const interpolated = interpolateAppResultUtterances(utterances, result2);
   const items = episodeItems(interpolated).filter(({ segment }) => ["dialogue", "action", "thought", "narration"].includes(segment.type) && typeof segment.text === "string" && segment.text.trim());
   if (!items.length) return;
+  clearGameResultThinking();
   showDialogueHistory();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
@@ -2101,6 +2143,7 @@ function completeHostedConfiguredApp(result2, utterances = null, partial = false
     appendHostedResolutionPartial(result2, utterances);
     return;
   }
+  clearGameResultThinking();
   const interpolatedUtterances = Array.isArray(utterances) ? interpolateAppResultUtterances(utterances, result2) : null;
   const remainingUtterances = interpolatedUtterances ? removeStreamedResolutionSegments(interpolatedUtterances) : null;
   const hadStreamedSegments = hostedResultStreamedKeys.length > 0;
@@ -2194,6 +2237,7 @@ function acceptEpisode(utterances) {
   hostedResultPending = false;
   hostedResultStreamedKeys = [];
   hostedResultCard = null;
+  clearGameResultThinking();
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -2223,6 +2267,7 @@ function restartEpisode() {
   hostedResultPending = false;
   hostedResultStreamedKeys = [];
   hostedResultCard = null;
+  clearGameResultThinking();
   activeVideo = null;
   activeImage = null;
   replayingImage = false;

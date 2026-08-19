@@ -92,6 +92,7 @@ const COPY = {
     resultBestCascade: "Best cascade",
     continueAfterGame: "Continue story",
     continueAfterGamePrompt: "Continue the story naturally from this moment.",
+    generatingGameResult: "Generating the story result…",
   },
   "zh-cn": {
     waiting: "正在准备你的故事…",
@@ -164,6 +165,7 @@ const COPY = {
     resultBestCascade: "最高连击",
     continueAfterGame: "继续剧情",
     continueAfterGamePrompt: "请从这一刻自然地继续剧情。",
+    generatingGameResult: "正在生成剧情结果…",
   },
 };
 
@@ -269,6 +271,7 @@ let localAppResultContext = null;
 let hostedResultPending = false;
 let hostedResultStreamedKeys = [];
 let hostedResultCard = null;
+let hostedResultThinking = null;
 let playerPersona = null;
 let activeVideo = null;
 let activeImage = null;
@@ -1139,6 +1142,45 @@ function renderGameResult(result, nextBeatId, config, onContinue = null) {
   return card;
 }
 
+function clearGameResultThinking() {
+  hostedResultThinking?.remove();
+  hostedResultThinking = null;
+}
+
+function renderGameResultThinking() {
+  clearGameResultThinking();
+  const group = document.createElement("article");
+  group.className = "message-group is-ai game-result-thinking";
+  if (experience?.avatarUrl) {
+    const avatar = document.createElement("img");
+    avatar.className = "message-avatar";
+    avatar.src = experience.avatarUrl;
+    avatar.alt = "";
+    group.append(avatar);
+  }
+  const content = document.createElement("div");
+  content.className = "message-content";
+  const speaker = document.createElement("p");
+  speaker.className = "speaker";
+  speaker.textContent = experience?.title || copy.kicker;
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble game-result-thinking-bubble";
+  bubble.setAttribute("role", "status");
+  bubble.setAttribute("aria-live", "polite");
+  bubble.setAttribute("aria-label", copy.generatingGameResult);
+  const dots = document.createElement("span");
+  dots.className = "game-result-thinking-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let index = 0; index < 3; index += 1) dots.append(document.createElement("i"));
+  bubble.append(dots);
+  content.append(speaker, bubble);
+  group.append(content);
+  elements.lines.append(group);
+  hostedResultThinking = group;
+  elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
+  return group;
+}
+
 function replayCompletedImage(item) {
   const src = safeUrl(item?.segment?.mediaUrl);
   if (!src) return;
@@ -1229,6 +1271,7 @@ function settleActiveGameResult(current, output) {
   });
   closeConfiguredApp(false);
   hostedResultCard = renderGameResult(result, null, config);
+  renderGameResultThinking();
 }
 
 function closeConfiguredApp(resume = true) {
@@ -1272,6 +1315,7 @@ function appendHostedResolutionPartial(result, utterances) {
     && segment.text.trim()
   ));
   if (!items.length) return;
+  clearGameResultThinking();
   showDialogueHistory();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
@@ -1353,6 +1397,7 @@ function completeHostedConfiguredApp(result, utterances = null, partial = false)
     appendHostedResolutionPartial(result, utterances);
     return;
   }
+  clearGameResultThinking();
   const interpolatedUtterances = Array.isArray(utterances)
     ? interpolateAppResultUtterances(utterances, result)
     : null;
@@ -1459,6 +1504,7 @@ function acceptEpisode(utterances) {
   hostedResultPending = false;
   hostedResultStreamedKeys = [];
   hostedResultCard = null;
+  clearGameResultThinking();
   activeVideo = null;
   activeImage = null;
   replayingImage = false;
@@ -1490,6 +1536,7 @@ function restartEpisode() {
   hostedResultPending = false;
   hostedResultStreamedKeys = [];
   hostedResultCard = null;
+  clearGameResultThinking();
   activeVideo = null;
   activeImage = null;
   replayingImage = false;

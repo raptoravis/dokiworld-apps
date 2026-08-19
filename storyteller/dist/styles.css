@@ -836,6 +836,35 @@ button { color: inherit; }
 .game-result-continue { min-height: 44px; justify-self: end; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 0 20px; color: #fff; background: linear-gradient(145deg,#8f42d5,#6730aa); font-weight: 750; cursor: pointer; }
 .game-result-continue:disabled { opacity: .5; }
 
+.game-result-thinking .message-content { width: fit-content; }
+.game-result-thinking-bubble {
+  display: grid;
+  width: fit-content;
+  min-width: 66px;
+  min-height: 48px;
+  place-items: center;
+  padding: 12px 18px;
+}
+.game-result-thinking-dots { display: inline-flex; align-items: center; gap: 7px; }
+.game-result-thinking-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 248, 251, .86);
+  animation: game-result-thinking-jump 1.05s ease-in-out infinite;
+}
+.game-result-thinking-dots i:nth-child(2) { animation-delay: .14s; }
+.game-result-thinking-dots i:nth-child(3) { animation-delay: .28s; }
+
+@keyframes game-result-thinking-jump {
+  0%, 60%, 100% { opacity: .42; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-result-thinking-dots i { animation: none; opacity: .78; }
+}
+
 .story-shell[data-phase="dialogue"] .story-controls > span,
 .story-shell[data-phase="dialogue"] .progress-track { display: none; }
 
