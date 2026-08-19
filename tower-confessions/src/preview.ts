@@ -1,7 +1,6 @@
 import { createAppHost } from "@dokiworld/app-sdk";
 import { createCharacterHostExtension } from "@dokiworld/app-sdk/character";
 import { createDialogueHostExtension } from "@dokiworld/app-sdk/dialogue";
-import { createMediaHostExtension } from "@dokiworld/app-sdk/media";
 import { createPersonaHostExtension } from "@dokiworld/app-sdk/persona";
 import { createSpeechHostExtension } from "@dokiworld/app-sdk/speech";
 import { createStorageHostExtension } from "@dokiworld/app-sdk/storage";
@@ -14,7 +13,7 @@ frame.addEventListener("load", () => {
     target: frame.contentWindow!,
     targetOrigin: window.location.origin,
     expectedOrigin: window.location.origin,
-    extensions: ["character", "dialogue", "media", "persona", "progress", "resize", "speech", "storage"],
+    extensions: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
     init: {
       locale: new URLSearchParams(window.location.search).get("locale") === "zh-cn" ? "zh-cn" : "en",
       grantedScopes: ["character.identity", "character.avatar", "character.card", "player_persona"],
@@ -51,6 +50,5 @@ frame.addEventListener("load", () => {
     clearCheckpoint: () => { checkpoint = null; return { cleared: true }; },
   });
   createSpeechHostExtension(host, { synthesize: () => ({ audioUrl: "", cached: false }) });
-  createMediaHostExtension(host, {});
   host.connect({ onComplete: () => ({ status: "accepted" }) });
 });

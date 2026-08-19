@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  BLOCK_COUNT,
+  blockRisk,
+  characterCandidates,
   createTowerState,
   isPullable,
   nextTurn,
@@ -13,9 +16,9 @@ describe("Tower of Truth state", () => {
     const state = createTowerState(11);
 
     expect(isPullable(state, 0)).toBe(true);
-    expect(isPullable(state, 23)).toBe(true);
-    expect(isPullable(state, 24)).toBe(false);
-    expect(isPullable(state, 29)).toBe(false);
+    expect(isPullable(state, 14)).toBe(true);
+    expect(isPullable(state, 15)).toBe(false);
+    expect(isPullable(state, BLOCK_COUNT - 1)).toBe(false);
   });
 
   it("records social challenges without storing the player's private answer", () => {
@@ -41,5 +44,34 @@ describe("Tower of Truth state", () => {
     const result = pullBlock(characterTurn, selected!);
     expect(result.state.removed).toContain(selected);
     expect(result.state.pulls).toBe(1);
+  });
+
+  it("raises risk for center blocks and harder dates", () => {
+    const sweet = createTowerState(21, "sweet");
+    const heartbeat = createTowerState(21, "heartbeat");
+
+    expect(blockRisk(sweet, 1)).toBeGreaterThan(blockRisk(sweet, 0));
+    expect(blockRisk(heartbeat, 0)).toBeGreaterThan(blockRisk(sweet, 0));
+  });
+
+  it("returns three ranked, legal options for the character thinking panel", () => {
+    const state = nextTurn(createTowerState(31));
+    const candidates = characterCandidates(state);
+
+    expect(candidates).toHaveLength(3);
+    expect(candidates.every((candidate) => isPullable(state, candidate.blockId))).toBe(true);
+    expect(candidates[0]!.preference).toBeGreaterThanOrEqual(candidates[1]!.preference);
+  });
+
+  it("unlocks a memory card when completed prompts fill the heart meter", () => {
+    let state = createTowerState(41, "heartbeat");
+    state = recordChallenge(state, "truth");
+    state = recordChallenge(state, "dare");
+    state = recordChallenge(state, "truth");
+
+    expect(state.heart).toBe(100);
+    expect(state.memoryCardUnlocked).toBe(true);
+    expect(state.rememberedCount).toBeGreaterThan(0);
+    expect(state).not.toHaveProperty("answer");
   });
 });
