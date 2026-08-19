@@ -651,8 +651,7 @@ async function answerChallenge(): Promise<void> {
     playCue("heart");
     emitProgress();
     await save();
-  } catch (error) {
-    errorText = error instanceof Error ? error.message : copy.error;
+  } catch {
     responseText = locale === "zh-cn" ? "我听见了。这个答案，我会认真收好。" : "I heard you. I'll hold that answer gently.";
     state = recordChallenge(state, challenge.kind);
     await save();
@@ -834,8 +833,8 @@ async function settle(): Promise<void> {
     } else {
       errorText = copy.resultRejected;
     }
-  } catch (error) {
-    errorText = error instanceof Error ? error.message : copy.error;
+  } catch {
+    errorText = copy.error;
   } finally {
     busy = false;
     render();
@@ -892,8 +891,8 @@ app.connect({
   },
   onPrepareExit: () => ({ isDirty: state.pulls > 0, canSuspend: true, output: output(true) }),
   onExitDecision: () => undefined,
-  onError: (error) => {
-    errorText = error instanceof Error ? error.message : copy.error;
+  onError: () => {
+    errorText = copy.error;
     render();
   },
 });

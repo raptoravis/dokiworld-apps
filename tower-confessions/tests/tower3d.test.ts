@@ -34,6 +34,7 @@ describe("isometric tower rendering contract", () => {
     expect(rule(".tower-block::before")).toContain("height: var(--block-depth)");
     expect(rule(".tower-block::before")).toContain("rotateX(90deg)");
     expect(rule(".tower-block::after")).toContain("rotateY(90deg)");
+    expect(rule(".tower-block:disabled")).toContain("opacity: 1");
     expect(blockRules).not.toMatch(/\bfilter\s*:/);
     expect(pulse).not.toMatch(/\bfilter\s*:/);
   });

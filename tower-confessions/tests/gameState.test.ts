@@ -11,7 +11,7 @@ import {
   recordChallenge,
 } from "../src/gameState";
 
-describe("Tower of Truth state", () => {
+describe("Tower of Hearts state", () => {
   it("only exposes blocks below the top two occupied rows", () => {
     const state = createTowerState(11);
 
