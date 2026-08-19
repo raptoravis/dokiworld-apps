@@ -719,20 +719,45 @@ function createSpeechClientExtension(client, options) {
 }
 
 // node_modules/@dokiworld/app-sdk/src/storage.js
+var MAX_NAMESPACE_LENGTH = 100;
+var MAX_KEY_LENGTH = 200;
+var MAX_LIST_LIMIT = 100;
 var isRecord8 = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 var isString5 = (value) => typeof value === "string" && value.length > 0;
+var hasOnlyKeys = (value, keys) => Object.keys(value).every((key) => keys.includes(key));
+var hasNoControlCharacters = (value) => [...value].every((character2) => character2.charCodeAt(0) >= 32 && character2.charCodeAt(0) !== 127);
+var isNamespace = (value) => typeof value === "string" && value.length > 0 && value.length <= MAX_NAMESPACE_LENGTH && hasNoControlCharacters(value);
+var isKey = (value) => typeof value === "string" && value.length > 0 && value.length <= MAX_KEY_LENGTH && hasNoControlCharacters(value);
+var isCursor = (value) => typeof value === "string" && value.length > 0 && value.length <= 1e3;
+var isTimestamp = (value) => typeof value === "string" && value.length <= 64 && Number.isFinite(Date.parse(value));
+var isNamespaceOptions = (value) => isRecord8(value) && hasOnlyKeys(value, ["namespace"]) && (value.namespace === void 0 || isNamespace(value.namespace));
+var isListInput = (value) => isRecord8(value) && hasOnlyKeys(value, ["namespace", "prefix", "cursor", "limit"]) && (value.namespace === void 0 || isNamespace(value.namespace)) && (value.prefix === void 0 || typeof value.prefix === "string" && value.prefix.length <= MAX_KEY_LENGTH) && (value.cursor === void 0 || isCursor(value.cursor)) && (value.limit === void 0 || Number.isInteger(value.limit) && value.limit >= 1 && value.limit <= MAX_LIST_LIMIT);
 var isCheckpoint = (value) => isRecord8(value) && isString5(value.contract) && Number.isInteger(value.version) && value.version > 0 && "data" in value && isBoundedCapabilityValue(value.data);
+var isStorageItem = (value) => isRecord8(value) && hasOnlyKeys(value, ["key", "value", "updatedAt"]) && isKey(value.key) && "value" in value && isBoundedCapabilityValue(value.value) && isTimestamp(value.updatedAt);
+var isCheckpointEntry = (value) => isRecord8(value) && hasOnlyKeys(value, ["namespace", "checkpoint", "updatedAt"]) && isNamespace(value.namespace) && isCheckpoint(value.checkpoint) && isTimestamp(value.updatedAt);
+var isPage = (value, itemValidator) => isRecord8(value) && hasOnlyKeys(value, ["items", "nextCursor"]) && Array.isArray(value.items) && value.items.length <= MAX_LIST_LIMIT && value.items.every(itemValidator) && (value.nextCursor === null || isCursor(value.nextCursor));
 var definition3 = Object.freeze({ name: "storage", operations: Object.freeze({
-  loadCheckpoint: { input: (value) => isRecord8(value) && Object.keys(value).length === 0, output: (value) => isRecord8(value) && (value.checkpoint === null || isCheckpoint(value.checkpoint)) },
-  saveCheckpoint: { input: (value) => isRecord8(value) && isCheckpoint(value.checkpoint), output: (value) => isRecord8(value) && value.saved === true },
-  clearCheckpoint: { input: (value) => isRecord8(value) && Object.keys(value).length === 0, output: (value) => isRecord8(value) && value.cleared === true }
+  loadCheckpoint: { input: isNamespaceOptions, output: (value) => isRecord8(value) && hasOnlyKeys(value, ["checkpoint"]) && (value.checkpoint === null || isCheckpoint(value.checkpoint)) },
+  saveCheckpoint: { input: (value) => isRecord8(value) && hasOnlyKeys(value, ["checkpoint", "namespace"]) && isCheckpoint(value.checkpoint) && (value.namespace === void 0 || isNamespace(value.namespace)), output: (value) => isRecord8(value) && value.saved === true },
+  clearCheckpoint: { input: isNamespaceOptions, output: (value) => isRecord8(value) && value.cleared === true },
+  listCheckpoints: { input: isListInput, output: (value) => isPage(value, isCheckpointEntry) },
+  getItem: { input: (value) => isRecord8(value) && hasOnlyKeys(value, ["key", "namespace"]) && isKey(value.key) && (value.namespace === void 0 || isNamespace(value.namespace)), output: (value) => isRecord8(value) && hasOnlyKeys(value, ["item"]) && (value.item === null || isStorageItem(value.item)) },
+  setItem: { input: (value) => isRecord8(value) && hasOnlyKeys(value, ["key", "value", "namespace"]) && isKey(value.key) && "value" in value && isBoundedCapabilityValue(value.value) && (value.namespace === void 0 || isNamespace(value.namespace)), output: (value) => isRecord8(value) && hasOnlyKeys(value, ["item"]) && isStorageItem(value.item) },
+  deleteItem: { input: (value) => isRecord8(value) && hasOnlyKeys(value, ["key", "namespace"]) && isKey(value.key) && (value.namespace === void 0 || isNamespace(value.namespace)), output: (value) => isRecord8(value) && hasOnlyKeys(value, ["deleted"]) && typeof value.deleted === "boolean" },
+  listItems: { input: isListInput, output: (value) => isPage(value, isStorageItem) }
 }) });
 function createStorageClientExtension(client, options) {
   const capability = createCapabilityClient(client, definition3, options);
+  const namespaceInput = (options2) => options2?.namespace === void 0 ? {} : { namespace: options2.namespace };
   return Object.freeze({
-    loadCheckpoint: () => capability.invoke("loadCheckpoint", {}),
-    saveCheckpoint: (checkpoint) => capability.invoke("saveCheckpoint", { checkpoint }),
-    clearCheckpoint: () => capability.invoke("clearCheckpoint", {}),
+    loadCheckpoint: (options2) => capability.invoke("loadCheckpoint", namespaceInput(options2)),
+    saveCheckpoint: (checkpoint, options2) => capability.invoke("saveCheckpoint", { checkpoint, ...namespaceInput(options2) }),
+    clearCheckpoint: (options2) => capability.invoke("clearCheckpoint", namespaceInput(options2)),
+    listCheckpoints: (options2 = {}) => capability.invoke("listCheckpoints", options2),
+    getItem: (key, options2) => capability.invoke("getItem", { key, ...namespaceInput(options2) }),
+    setItem: (key, value, options2) => capability.invoke("setItem", { key, value, ...namespaceInput(options2) }),
+    deleteItem: (key, options2) => capability.invoke("deleteItem", { key, ...namespaceInput(options2) }),
+    listItems: (options2 = {}) => capability.invoke("listItems", options2),
     dispose: capability.dispose
   });
 }
