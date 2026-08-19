@@ -1,6 +1,6 @@
 # DokiWorld App SDK：App 开发、协议与交付指南
 
-本文是使用 `@dokiworld/app-sdk` 开发 DokiWorld iframe App 的规范指南。适用于 Game、World 和操作型 App。可运行示例参考 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)；仓库中的 `game-match3`、`storyteller` 与 `banquet-contract` 分别展示 Game、通用 Episode World 和定制 World。
+本文是使用 `@dokiworld/app-sdk` 开发 DokiWorld iframe App 的规范指南。所有 iframe 交互内容都使用同一种 App 模型；是否允许对话拉起、是否渲染 Episode 以及需要哪些 Host capability，均由 manifest 字段声明，而不是由预设内容类型决定。可运行示例参考 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)；仓库中的 `game-match3`、`storyteller` 与 `banquet-contract` 展示不同交互流程的 App。
 
 UI Extension 不属于 iframe App。它使用 `@dokiworld/extension-sdk`，安装和运行模型见 [`ui-extension-system.zh-CN.md`](ui-extension-system.zh-CN.md)。
 
@@ -30,8 +30,8 @@ DokiWorld catalog → iframe Host ↔ @dokiworld/app-sdk ↔ App
 - App 不导入 DokiWorld `frontend/src` 或 backend 内部模块。
 - `package.json.version` 是发布版本的唯一事实来源；manifest 生成器把它写入 manifest。
 - `dist/manifest.json` 是交付清单，不手工编辑 `dist/`。
-- Game manifest 自包含启停状态、选择提示、context scopes 和 runtime contract，不需要额外的 `external-apps.json`。
-- World manifest 不包含 `selection`；World 由用户从 World card 或明确入口启动，不参与 Game 的 LLM 自动选择。
+- App manifest 自包含启停状态、启动策略、context scopes 和 runtime contract，不需要额外的 `external-apps.json`。
+- `chatLaunchable` 决定 App 是否可由对话拉起；仅这类 App 需要 `selection`。其他 App 从明确的产品入口启动。
 - 英文是规范产品语言，同时维护对应的简体中文内容。
 
 ## 2. 建立项目
@@ -87,18 +87,18 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
 }
 ```
 
-## 3. 可由对话拉起的 App manifest
+## 3. App manifest
 
-新 Game 使用 `schemaVersion: 2`。下面是可直接作为生成目标的完整形状：
+新 App 使用 `schemaVersion: 2`。下面是一个可由对话拉起并返回标准结算结果的完整示例：
 
 ```json
 {
   "schemaVersion": 2,
   "version": "1.0.0",
-  "id": "my-game",
+  "id": "my-app",
   "chatLaunchable": true,
   "status": "active",
-  "capability": "game.puzzle.example",
+  "capability": "app.puzzle.example",
   "entry": "index.html",
   "cover": "assets/cover.webp",
   "launchRequirements": {
@@ -110,13 +110,13 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
   },
   "locales": {
     "en": {
-      "name": "Example Game",
+      "name": "Example Puzzle App",
       "description": "A short cooperative puzzle.",
       "aliases": ["Example Puzzle"]
     },
     "zh-cn": {
-      "name": "示例游戏",
-      "description": "一个简短的合作解谜游戏。",
+      "name": "示例解谜 App",
+      "description": "一个简短的合作解谜 App。",
       "aliases": ["示例解谜"]
     }
   },
@@ -138,7 +138,7 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
     "input": {
-      "contract": "doki.game.my-game-input",
+      "contract": "doki.app.my-app-input",
       "version": 1
     },
     "outputs": [
@@ -152,26 +152,27 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
 }
 ```
 
-Game 特有规则：
+Manifest 规则：
 
 - `status` 必须是 `active`、`deprecated` 或 `disabled`。
 - `capability` 是稳定、语言无关的能力标识。
-- `selection.promptHint.en` 与 `selection.promptHint.zh-cn` 必填，并会进入 LLM 的候选 App 提示。
+- `chatLaunchable` 可省略，省略时按 `false` 处理。只有显式设为 `true` 时 App 才能成为对话拉起候选；设为 `false` 或省略时只能从其他产品入口打开。字段存在时必须是布尔值。
+- `chatLaunchable: true` 时，`selection.promptHint.en` 与 `selection.promptHint.zh-cn` 必填，并会进入 LLM 的候选 App 提示。
 - `activationPolicy` 为 `explicit` 或 `explicit-or-contextual`。
 - `avoidHint`、tags、intents 和正反 examples 可选，用于降低误触发。
 - aliases 用于玩家明确点名匹配。
 - `launchRequirements.minPlayers` 是总参与方数量，不是 AI 座位数或最大人数。
-- `result.metrics` 声明 `doki.game.result/1` 可能返回的 metric 名称。创建 Episode 时，编辑器会根据所选 Game 将它们列为 `{{app.metrics.<name>}}` 可用变量；不要声明运行时永远不会返回的名称。
+- 如果 App 返回 `doki.game.result/1`，`result.metrics` 声明其可能返回的 metric 名称。创建 Episode 时，编辑器会根据所选 App 将它们列为 `{{app.metrics.<name>}}` 可用变量；不要声明运行时永远不会返回的名称。
 
-## 4. 不由对话拉起的 Episode Renderer App manifest
+## 4. Episode Renderer App manifest
 
-World manifest 使用 `schemaVersion: 2`，运行协议只在 `runtime` 中声明：
+渲染 Episode 的 App 仍使用同一套 `schemaVersion: 2` manifest，运行协议只在 `runtime` 中声明：
 
 ```json
 {
   "schemaVersion": 2,
   "version": "1.0.0",
-  "id": "my-world",
+  "id": "my-episode-app",
   "status": "active",
   "entry": "index.html",
   "cover": "assets/cover.webp",
@@ -179,19 +180,18 @@ World manifest 使用 `schemaVersion: 2`，运行协议只在 `runtime` 中声�
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
     "input": {
-      "contract": "doki.world.my-world-input",
+      "contract": "doki.app.my-episode-input",
       "version": 1
     },
     "outputs": [
       {
-        "contract": "doki.world.session-result",
+        "contract": "doki.app.session-result",
         "version": 1
       }
     ],
     "extensions": ["episode", "chat", "checkpoint", "apps"]
   },
   "episodeRenderer": true,
-  "chatLaunchable": false,
   "launchRequirements": {
     "minPlayers": 1
   },
@@ -201,12 +201,12 @@ World manifest 使用 `schemaVersion: 2`，运行协议只在 `runtime` 中声�
   },
   "locales": {
     "en": {
-      "name": "Example World",
-      "description": "An interactive episode World."
+      "name": "Example Episode",
+      "description": "An interactive episode App."
     },
     "zh-cn": {
-      "name": "示例世界",
-      "description": "一个互动剧集世界。"
+      "name": "示例剧集",
+      "description": "一个互动剧集 App。"
     }
   }
 }
@@ -215,14 +215,14 @@ World manifest 使用 `schemaVersion: 2`，运行协议只在 `runtime` 中声�
 支持 Episode 的 App 规则：
 
 - 不得声明顶层 `protocolVersion`；catalog 从 `runtime.protocolVersion` 派生兼容字段。
-- `episodeRenderer: true` 是 World catalog 能力，表示它可以渲染世界卡中的 Episode 配置；它不属于 `runtime.extensions`，也不能替代 `episode` 扩展声明。
-- App manifest 不内嵌角色副本。当前角色、World card 和 persona 来自 Host init 中实际授权的 context/input。
+- `episodeRenderer: true` 表示 App 可以渲染内容卡中的 Episode 配置；它不属于 `runtime.extensions`，也不能替代 `episode` 扩展声明。
+- App manifest 不内嵌角色副本。当前角色、内容卡和 persona 来自 Host init 中实际授权的 context/input。
 - 所有 App 都同步到 `frontend/public/apps/<id>`，manifest 不再声明 `kind`。
-- `chatLaunchable` 为必填布尔值。设为 `true` 时 App 可成为对话拉起候选；设为 `false` 时只能从其他产品入口打开。
+- `chatLaunchable` 省略或设为 `false`，表示该 App 只从明确的 Episode 或其他产品入口启动。
 
 ### 4.1 已知扩展与 Host capability profile
 
-App SDK 只维护语言无关的已知扩展注册表，不按 Game/World 分类：
+App SDK 只维护语言无关的已知扩展注册表，不定义 App 类型分类：
 
 ```js
 import { RUNTIME_EXTENSIONS } from "@dokiworld/app-sdk/runtime-extensions";
@@ -234,23 +234,23 @@ import { RUNTIME_EXTENSIONS } from "@dokiworld/app-sdk/runtime-extensions";
 
 | 当前 Host profile | 当前提供的 `runtime.extensions` |
 | --- | --- |
-| Chat Game Host | `character`、`checkpoint`、`dialogue`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
-| World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
-| World Nested App Host | `checkpoint`、`progress`、`resize` |
+| 对话内 App Host | `apps`、`character`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
+| 独立页面 App Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
+| 嵌套 App Host | `checkpoint`、`progress`、`resize` |
 
-这些 profile 属于 DokiWorld Host 实现，不属于 App SDK 的 Game/World 类型系统。未来任一 Host 增加能力时，只需升级 Host profile 和 adapter。
+这些 profile 只描述 App 当前运行 surface 的 Host 实现，不构成 App 类型系统。未来任一 Host 增加能力时，只需升级 Host profile 和 adapter。
 
 只声明 App 实际使用的能力：
 
-- `episode` 对应 Episode 选择、回复、动作和游戏结果等 `dokiworld-app-episode-*` 消息；
+- `episode` 对应 Episode 选择、回复、动作和 App 结果等 `dokiworld-app-episode-*` 消息；
 - `chat` 对应 Episode 兼容层中的重新生成、建议与媒体等 `dokiworld-app-chat-*` 消息；
-- `world` 对应 World 自有控制消息，例如 `dokiworld-app-world-error`；
-- `checkpoint` 在 Game 中用于游戏 checkpoint，在 World 中用于 World 会话 checkpoint；
+- `world` 是保留的协议扩展名，对应独立页面控制消息，例如 `dokiworld-app-world-error`；
+- `checkpoint` 保存当前 App 会话的可恢复状态；
 - `memory` 读取当前人物卡与已登录用户之间的长期记忆，`footprint` 读取同一关系下的互动足迹；两者都需要同名 context scope；
 - `memory.list()` 与 `footprint.list()` 由 Host 固定当前人物卡，App 不传 `characterId`，返回值不包含账号 ID 或来源会话 ID；
-- `apps` 当前由 World Page Host 提供，用于列出和启动嵌套 v2 App；若未来 Chat Game Host 实现该能力，同一个扩展无需修改 SDK 即可使用；
-- World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验；
-- `progress` 与 `resize` 当前由 Chat Game Host 和 World Nested App Host 提供，World Page Host 本身会在启动时报告不兼容。
+- `apps` 用于列出和启动当前 Host surface 允许的嵌套 v2 App；不同 surface 可以返回不同目录或拒绝不支持的 operation；
+- 独立页面 App Host 的 `apps.list()` 只返回与嵌套 App Host 兼容的 App，`apps.launch()` 也会再次校验；
+- `progress` 与 `resize` 当前由对话内 App Host 和嵌套 App Host 提供，独立页面 App Host 本身会在启动时报告不兼容。
 
 ## 5. Manifest 生成
 
@@ -264,7 +264,7 @@ const manifest = {
   // 固定字段与完整 runtime/locales 配置
   schemaVersion: 2,
   version: packageJson.version,
-  id: "my-game",
+  id: "my-app",
   status: "active"
 };
 
@@ -278,8 +278,8 @@ await writeFile("src/manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
 - `entry`、`cover` 和所有运行资源位于 App 包内；
 - 英文与简体中文字段完整；
 - runtime input/output contract 与版本完整；
-- Game 的 `result.metrics` 名称唯一、与实际结算结果一致，并且最多 12 项；
-- Game 有双语 `selection.promptHint`，World 没有 `selection`；
+- 返回 `doki.game.result/1` 的 App，其 `result.metrics` 名称唯一、与实际结算结果一致，并且最多 12 项；
+- `chatLaunchable: true` 的 App 有双语 `selection.promptHint`；其他 App 不声明 `selection`；
 - 声明的 extension 与业务代码实际创建的 SDK extension 一致。
 
 ## 6. `dokiworld.app/2` 生命周期
@@ -290,13 +290,13 @@ App 入口使用 `createAppClient()`，不手写 `postMessage` wire 字符串：
 import { createAppClient } from "@dokiworld/app-sdk";
 
 const app = createAppClient({
-  appId: "my-game",
+  appId: "my-app",
   extensions: ["progress", "checkpoint"],
 });
 
 app.connect({
   onInit: async ({ locale, context, input }) => {
-    await startGame({ locale, context, options: input.data });
+    await startApp({ locale, context, options: input.data });
   },
   onPrepareExit: () => ({ isDirty: false, canSuspend: true }),
   onExitDecision: (decision) => handleExitDecision(decision),
@@ -338,15 +338,15 @@ App 不读取 DokiWorld token、Cookie 或内部 HTTP 接口。认证、API key�
 | `@dokiworld/app-sdk/memory` | 当前人物卡的 owner-scoped 长期记忆分页读取 |
 | `@dokiworld/app-sdk/footprint` | 当前人物卡的 owner-scoped 互动足迹分页读取 |
 | `@dokiworld/app-sdk/apps` | 查询并启动嵌套 v2 App |
-| `@dokiworld/app-sdk/episode` | Episode 语义事件与游戏结果路由 |
+| `@dokiworld/app-sdk/episode` | Episode 语义事件与 App 结果路由 |
 | `@dokiworld/app-sdk/game-result` | `doki.game.result/1` 创建、解析和校验 |
 | `@dokiworld/app-sdk/runtime-extensions` | 已知扩展名常量 `RUNTIME_EXTENSIONS` 与 `RuntimeExtension` 联合类型 |
 
 未声明的扩展消息会被拒绝；Host 没有实现的 operation 返回稳定的 `unsupported-operation`。具体调用方式见 [`packages/app-sdk/README.zh-CN.md`](../packages/app-sdk/README.zh-CN.md)，Episode 专属机制见 [`episode-app-sdk-integration.zh-CN.md`](episode-app-sdk-integration.zh-CN.md)。
 
-## 8. Game 结算与中途退出
+## 8. App 结算与中途退出
 
-Game 使用 SDK 创建规范结果：
+需要标准化分数、结果状态和指标的 App 使用 SDK 创建规范结果：
 
 ```js
 import { createGameResult } from "@dokiworld/app-sdk/game-result";
@@ -372,7 +372,7 @@ onPrepareExit: () => ({
 })
 ```
 
-消费方使用 `parseGameResult()` 解析不可信 output。Episode World 使用 `episode.gameCompleted` 转发完整、带版本的 output，并可按 outcome、分数和 metrics 配置不同后续分支。
+消费方使用 `parseGameResult()` 解析不可信 output。承载 Episode 的 App 使用 `episode.gameCompleted` 转发完整、带版本的 output，并可按 outcome、分数和 metrics 配置不同后续分支。`GameResult`、`doki.game.result` 与 `episode.gameCompleted` 是兼容性稳定的 SDK/API 名称，不表示 App 被划分为 Game 类型。
 
 ## 9. 构建与打包
 
@@ -439,8 +439,8 @@ App 版本、manifest schema、runtime protocol 和业务 contract version 是�
 
 - [ ] ID 在目录、manifest 和 `createAppClient({ appId })` 中一致。
 - [ ] manifest 与 package 版本一致，`dist/manifest.json` 由构建生成。
-- [ ] Game 有 `status`、双语 `selection.promptHint` 和声明的结果 contract。
-- [ ] World 没有 `selection`，也没有角色资料副本。
+- [ ] 只有需要对话拉起时才显式设置 `chatLaunchable: true`，并提供双语 `selection.promptHint`；省略时确认默认的 `false` 符合预期。
+- [ ] App 不包含角色资料副本，并只声明实际使用的 context scopes。
 - [ ] manifest extension、Client extension 和真实业务调用一致；目标 Host profile 提供全部声明能力。
 - [ ] required/optional scope 缺失场景有测试和降级行为。
 - [ ] completion、重复 ack、退出、中途得分和 cleanup 有测试。
