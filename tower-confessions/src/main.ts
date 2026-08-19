@@ -347,7 +347,7 @@ function companionArt(mood: "idle" | "expect" | "think" | "smile" = "idle"): str
 function towerMarkup(options: { interactive?: boolean; fallen?: boolean; selected?: number } = {}): string {
   const rows = Array.from({ length: BLOCK_COUNT / 3 }, (_, row) => row).reverse();
   return `<div class="tower ${options.fallen ? "is-fallen" : ""}" aria-label="Tower">
-    ${rows.map((row) => `<div class="tower-row orientation-${row % 2}" style="--layer:${row};--z:${row * 25}px;--lift:${row * -18}px;--scatter:${(row - 3) * 5}px">
+    ${rows.map((row) => `<div class="tower-row orientation-${row % 2}" style="--layer:${row};--z:${row * 22}px;--scatter:${(row - 3) * 5}px">
       ${[0, 1, 2].map((column) => {
         const id = row * 3 + column;
         const removed = state.removed.includes(id);
