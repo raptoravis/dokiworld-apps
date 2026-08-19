@@ -1651,7 +1651,7 @@ function preloadNextEpisodeGame() {
   preparedGameId = gameId;
   preparedGameRunId = `${WORLD_ID}:preload:${Date.now()}:${Math.random().toString(36).slice(2)}`;
   gameFrameReady = false;
-  matchFrame.src = `/games/${gameId}/index.html?run=${encodeURIComponent(preparedGameRunId)}`;
+  matchFrame.src = `/apps/${gameId}/index.html?run=${encodeURIComponent(preparedGameRunId)}`;
 }
 function resetPreparedGame() {
   activeGameHost?.dispose();
@@ -1901,7 +1901,7 @@ function startGame() {
   acceptedGameResult = false;
   gameRunId = `${WORLD_ID}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
   gameLoading.classList.remove("is-hidden");
-  matchFrame.src = `/games/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
+  matchFrame.src = `/apps/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
 }
 function startSecondActGame() {
   matchTitle.textContent = copy.secondActMatchTitle;
@@ -1912,7 +1912,7 @@ function startSecondActGame() {
   acceptedGameResult = false;
   gameRunId = `${WORLD_ID}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
   gameLoading.classList.remove("is-hidden");
-  matchFrame.src = `/games/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
+  matchFrame.src = `/apps/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
 }
 function startConfiguredGame(config) {
   const gameId = typeof config?.gameId === "string" ? config.gameId.trim() : "";
@@ -1935,7 +1935,7 @@ function startConfiguredGame(config) {
     preparedGameId = gameId;
     preparedGameRunId = gameRunId;
     gameFrameReady = false;
-    matchFrame.src = `/games/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
+    matchFrame.src = `/apps/${activeGameId}/index.html?run=${encodeURIComponent(gameRunId)}`;
   }
 }
 function connectGameHost() {

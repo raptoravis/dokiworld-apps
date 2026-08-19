@@ -1,6 +1,6 @@
 // 按 docs/external-game-provider-integration.zh-CN.md 生成 storyteller 的 manifest。
 //
-// storyteller 是 schema v2 manifest、dokiworld.app/2 runtime 的 World（episodeRenderer）。
+// storyteller 是 schema v2 manifest、dokiworld.app/2 runtime 的 App（episodeRenderer）。
 // 本脚本以模块内的 JS 对象作为单一事实来源，校验后输出 src/manifest.json，
 // 让 manifest 不再手写、始终与文档规范一致。build.mjs 会在生成 dist 前调用它。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -22,7 +22,7 @@ const manifest = {
   schemaVersion: 2,
   version: packageJson.version,
   id: "storyteller",
-  kind: "world",
+  chatLaunchable: false,
   status: "active",
   entry: "index.html",
   runtime: {
@@ -61,7 +61,7 @@ function validate(target, src = srcDir) {
   }
   if (target.schemaVersion !== 2) errors.push("schemaVersion 必须为 2");
   if (!SEMVER_PATTERN.test(target.version)) errors.push("version 必须来自 package.json 且符合 semver");
-  if (target.kind !== "world") errors.push('kind 必须为 "world"');
+  if (target.chatLaunchable !== false) errors.push("chatLaunchable 必须为 false");
   if (target.protocolVersion !== undefined) errors.push("schemaVersion 2 不得声明顶层 protocolVersion");
   if (target.runtime?.protocol !== "dokiworld.app" || target.runtime?.protocolVersion !== 2) {
     errors.push("runtime 必须使用 dokiworld.app v2");

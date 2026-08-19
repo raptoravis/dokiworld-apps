@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "id": "game-match3",
-  "kind": "game",
+  "chatLaunchable": true,
   "status": "active",
   "capability": "game.puzzle.match-three",
   "entry": "index.html",

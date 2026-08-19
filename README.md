@@ -6,12 +6,12 @@ DokiWorld 的外部 App 集合。各 App 通过自己的 `package.json` 引用�
 
 ## 项目结构
 
-| 目录 | 版本 | 类型 | SDK 集成 |
+| 目录 | 版本 | 可由对话拉起 | SDK 集成 |
 |---|---:|---|---|
-| `game-match3` | `1.0.5` | Game App | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
-| `banquet-contract` | `1.0.6` | World App | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 Game |
-| `storyteller` | `1.1.11` | World App | 使用 Episode、Dialogue 及类型化 capabilities 渲染互动剧集和消费 Game 结算 |
-| `tower-confessions` | `0.1.0` | Game App | 使用角色、对话、媒体、Persona、语音与存储能力实现叠叠乐互动体验 |
+| `game-match3` | `1.0.7` | 是 | 使用 `createAppClient` 接收初始化数据，并通过 `doki.game.result/1` 提交完整结算或中途退出得分 |
+| `banquet-contract` | `1.0.8` | 否 | 使用 `createAppClient`、Episode extension，并通过 `createAppHost` 兼容嵌套 App |
+| `storyteller` | `1.1.13` | 否 | 使用 Episode、Dialogue 及类型化 capabilities 渲染互动剧集和消费 App 结算 |
+| `tower-confessions` | `0.2.2` | 是 | 使用角色、对话、媒体、Persona、语音与存储能力实现叠叠乐互动体验 |
 
 每个 App 的源码、manifest 生成脚本、测试和 `dist/` 构建产物都在其目录内维护。manifest、`package.json` 与静态资源引用的版本必须同步更新。
 
@@ -126,7 +126,7 @@ Storyteller `1.1.11` 已在 manifest 中声明并在 `src/app.js` 中实际使�
 
 `runtime.input` 和 `runtime.outputs` 是版本化 contract；`runtime.extensions` 只声明 App 确实消费的可选能力。
 
-App SDK 维护统一的已知扩展注册表；App 的 `kind` 不决定 extension 是否合法。Catalog 只拒绝未知扩展，真正启动时由当前 Host capability profile 判断是否兼容：
+App SDK 维护统一的已知扩展注册表；manifest 不再声明 `kind`。`chatLaunchable` 只表示 App 是否可以由对话拉起，不决定 extension 是否合法。Catalog 只拒绝未知扩展，真正启动时由当前 Host capability profile 判断是否兼容：
 
 | 当前 Host profile | 当前提供的 `runtime.extensions` |
 |---|---|
@@ -134,13 +134,13 @@ App SDK 维护统一的已知扩展注册表；App 的 `kind` 不决定 extensio
 | World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
 | World Nested App Host | `checkpoint`、`progress`、`resize` |
 
-`episodeRenderer` 是 World catalog 能力，不是 runtime extension；使用 Episode 消息的 App 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现，不是 SDK 对 Game 的永久限制。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
+`episodeRenderer` 是 App catalog 能力，不是 runtime extension；使用 Episode 消息的 App 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
 
 `memory` 和 `footprint` 分别读取当前人物卡的长期记忆与互动足迹。App 必须同时声明同名 runtime extension 和 context scope；Host 会把读取固定到当前人物卡与已登录用户，App 不传 `characterId`，也不会收到账号 ID 或来源会话 ID。
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 
-## 新增 App（Game / World）
+## 新增 App
 
 新增 App 不只是复制一份静态页面。一个可被 DokiWorld 发现并安全启动的 App，需要同时完成目录、manifest contract、SDK 生命周期、权限、本地化、构建、测试和 catalog 接入。
 
@@ -163,32 +163,24 @@ dokiworld-apps.git/
     └── README.md
 ```
 
-可以分别参考：
+可以根据能力需求参考：
 
-- Game：`game-match3`；
-- 通用 World：`storyteller`；
-- 使用 Episode、Dialogue、媒体及嵌套 App 的 World：`storyteller`。
+- 可由对话拉起的互动 App：`game-match3`；
+- 使用 Episode、Dialogue、媒体及嵌套 App 的长流程 App：`storyteller`。
 
 `package.json` 至少应提供 `build`、`test` 和 `generate:manifest` 脚本，并通过公共 semver 版本引用 `@dokiworld/app-sdk`。构建必须生成完整的 `dist/`，其中包含可直接加载的入口文件和 `dist/manifest.json`。
 
 ### 2. 定义 App contract
 
-Game 与 World 都使用 `dokiworld.app/2`，但 catalog 当前接受的 manifest 形状不同：
+所有 App 都使用 `dokiworld.app/2` 和统一 manifest。manifest 不声明 `kind`，只通过 `chatLaunchable` 表明是否可以由对话拉起。input/output contract、最小玩家数和 extensions 由 App 自身能力决定，不构成 Game/World 分类。
 
-| 项目 | Game | World |
-|---|---|---|
-| `kind` | `game` | `world` |
-| manifest schema | `schemaVersion: 2` | `schemaVersion: 2` |
-| 最小玩家数 | `launchRequirements.minPlayers` 至少为 `2` | 通常为 `1` |
-| input contract | 例如 `doki.game.<id>-input` | 例如 `doki.world.<id>-input` |
-| output contract | 通常为 `doki.game.result` 或专用结果 | 通常为 `doki.world.session-result` |
-| context scopes | `context.requiredScopes` / `optionalScopes` | `context.requiredScopes` / `optionalScopes` |
-| catalog 注册 | 无需额外注册文件，由 Game manifest 自动发现 | 本地同步后由 World catalog 自动发现 |
-
-两类 App 的 `runtime` 都必须声明：
+App 的 manifest 和 `runtime` 至少应声明：
 
 ```json
 {
+  "schemaVersion": 2,
+  "id": "my-new-app",
+  "chatLaunchable": true,
   "runtime": {
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
@@ -207,7 +199,7 @@ Game 与 World 都使用 `dokiworld.app/2`，但 catalog 当前接受的 manifes
 }
 ```
 
-World 应把示例中的 `doki.game.*` 换成自己的 `doki.world.*` contract。contract 名和版本属于 Host 与 App 之间的公开协议；修改已有 contract 的结构时应提升 contract version，并同步更新 Host adapter 和测试。
+示例 contract 名不是 App 分类字段；App 可以按业务语义定义自己的 contract。contract 名和版本属于 Host 与 App 之间的公开协议；修改已有 contract 的结构时应提升 contract version，并同步更新 Host adapter 和测试。
 
 manifest 的版本应以 `package.json.version` 为单一事实来源，由生成脚本写入。App ID、`package.json` 版本、源码 manifest 和 `dist/manifest.json` 必须保持一致。
 
@@ -224,24 +216,25 @@ App 入口应通过 `createAppClient` 完成 ready/init/initialized、运行消�
 
 只改 manifest 不会让 capability 生效。listener、extension subscription、timer 和嵌套 App Host 都应在结束或卸载时释放。
 
-Game 至少应提交符合 output contract 的结构化结果。World 应提交 session result；如果 World 内会启动 Game 或其他 App，优先使用 `apps.launch()`，只有需要兼容旧 App 时才保留 `createAppHost` 桥。
+App 应提交符合自身 output contract 的结构化结果。如果 App 内会启动其他 App，优先使用 `apps.launch()`，只有需要兼容旧 App 时才保留 `createAppHost` 桥。
 
 ### 4. 声明权限与双语内容
 
 只申请实际使用的 scope。需要角色身份、头像、角色卡或玩家角色卡时，在对应的 required/optional scope 中声明，并确认 Host 允许该 scope；App 必须能处理 optional scope 未授权或 capability 不可用的情况。
 
-manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description`。英文是规范产品语言，新增用户可见文案必须在同一变更中提供简体中文翻译。Game 的别名、`selection.promptHint` 以及可选的 `selection.avoidHint` 也必须同时维护两种语言；World 不应声明 `selection`。
+manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description`。英文是规范产品语言，新增用户可见文案必须在同一变更中提供简体中文翻译。可由对话拉起的 App 还应维护双语别名、`selection.promptHint` 以及可选的 `selection.avoidHint`。
 
-### 5. 完成自包含 Game manifest
+### 5. 完成自包含 App manifest
 
-新的 schema v2 Game 不需要额外的平台注册文件。manifest 自身应完整声明：
+新的 schema v2 App 不需要额外的平台注册文件。manifest 自身应完整声明：
 
 - `status`，值为 `active`、`deprecated` 或 `disabled`；
+- `chatLaunchable`，明确是否允许对话拉起；
 - 实际使用的 required/optional context scopes；
 - `selection`，其中双语 `promptHint` 必填；
 - 如果输出 `doki.game.result/1`，通过 `result.metrics` 声明运行时可能返回的指标名称，使 Episode 编辑器能针对所选 Game 列出对应的 `{{app.metrics.*}}` 变量。
 
-`selection` 还可包含 `avoidHint`、`activationPolicy`、tags、intents 和 examples。context scope 必须属于 Host 支持的公开 scope，否则 Game catalog 生成会失败。World manifest 会拒绝 `selection`。
+`selection` 还可包含 `avoidHint`、`activationPolicy`、tags、intents 和 examples。context scope 必须属于 Host 支持的公开 scope，否则 App catalog 生成会失败。不能由对话拉起的 App 不需要声明 `selection`。
 
 ### 6. 构建与测试
 
@@ -256,7 +249,7 @@ npm run build
 
 测试至少应覆盖：
 
-- manifest ID、kind、版本、runtime contract 和 extension 声明；
+- manifest ID、`chatLaunchable`、版本、runtime contract 和 extension 声明；
 - SDK 初始化、输入校验、completion acknowledgement 和退出 cleanup；
 - 每项声明 capability 的真实 SDK 调用，而不只是 manifest 字符串；
 - required/optional scope 缺失时的降级行为；
@@ -275,12 +268,12 @@ $env:DOKIWORLD_EXT_ROOT = "D:\dev\dokiworld-apps.git"
 npm run sync:local-apps
 ```
 
-同步脚本会扫描本仓库中带 `package.json` 的目录、执行各自的 `npm run build`，再根据 manifest 的 `kind` 把产物复制到 `frontend/public/games/<id>/` 或 `frontend/public/worlds/<id>/`，并重新生成 catalog；不需要手工编辑 `frontend/.local-apps-sync.json` 或生成后的 `catalog.json`。
+同步脚本会扫描本仓库中带 `package.json` 的目录、执行各自的 `npm run build`，把产物统一复制到 `frontend/public/apps/<id>/`，并重新生成 `frontend/public/apps/catalog.json`；不需要手工编辑 `frontend/.local-apps-sync.json` 或生成后的 catalog。
 
 最后至少检查：
 
-- Game 出现在 Game catalog，并能从真实 Host 流程启动和返回结果；
-- World 出现在 World catalog，并可通过 `/worlds/<id>` 和 `/zh-cn/worlds/<id>` 打开；
+- App 出现在统一 Apps catalog，并能从真实 Host 流程启动和返回结果；
+- `chatLaunchable` 为 `true` 的 App 可以由对话拉起，为 `false` 的 App 不会由对话拉起；
 - Developer Mode 加载的是本地同步产物，而不是远程 CDN 版本；
 - 浏览器控制台没有 origin、protocol、contract、scope 或 capability 错误；
 - 英文与简体中文入口都能完成一次完整运行和退出。
@@ -315,7 +308,7 @@ cd D:\dev\dokiworld.git
 npm run sync:local-apps
 ```
 
-该命令会重新构建本仓库的 App，将产物同步到 DokiWorld 的 `frontend/public/games/` 或 `frontend/public/worlds/`，并重新生成本地 catalog。Developer Mode 使用这些同步后的本地产物。
+该命令会重新构建本仓库的 App，将产物统一同步到 DokiWorld 的 `frontend/public/apps/`，并重新生成本地 Apps catalog。Developer Mode 使用这些同步后的本地产物。
 
 ## 测试
 

@@ -20,7 +20,7 @@ export async function generateManifest(output = manifestPath) {
     throw new Error("package.json version must be semver");
   }
   manifest.version = packageJson.version;
-  manifest.kind = "game";
+  manifest.chatLaunchable = true;
   await writeFile(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return output;
 }

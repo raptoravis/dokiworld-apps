@@ -80,7 +80,8 @@ test("deployable assets and manifest are versioned together", async () => {
     readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
   ]);
   assert.equal(manifest.version, packageJson.version);
-  assert.equal(manifest.kind, "world");
+  assert.equal(manifest.chatLaunchable, false);
+  assert.equal(Object.hasOwn(manifest, "kind"), false);
   assert.match(html, new RegExp(`\\./styles\\.css\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
   assert.match(html, new RegExp(`\\./app\\.js\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
 });

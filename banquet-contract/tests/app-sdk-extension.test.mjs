@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("Banquet Contract uses the non-duplicated World manifest v2 protocol shape", async () => {
+test("Banquet Contract uses the unified non-chat App manifest shape", async () => {
   const manifest = await readFile(new URL("../manifest.json", import.meta.url), "utf8").then(JSON.parse);
 
   assert.equal(manifest.schemaVersion, 2);
   assert.equal(manifest.protocolVersion, undefined);
   assert.equal(manifest.runtime.protocol, "dokiworld.app");
   assert.equal(manifest.runtime.protocolVersion, 2);
+  assert.equal(manifest.chatLaunchable, false);
+  assert.equal(Object.hasOwn(manifest, "kind"), false);
   assert.deepEqual(manifest.context, { requiredScopes: [], optionalScopes: [] });
 });
 

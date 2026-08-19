@@ -1,13 +1,13 @@
 # DokiWorld Storyteller
 
-A static World app that renders DokiWorld interactive episodes. Its deployable bundle has no runtime npm dependency because the App SDK is bundled during the build.
+A static, non-chat-launchable App that renders DokiWorld interactive episodes. Its deployable bundle has no runtime npm dependency because the App SDK is bundled during the build.
 
 It supports:
 
 - authored and generated dialogue, action, thought, and narration segments;
 - image and video media with accessible controls;
 - configured choices and free-text replies;
-- launching the configured DokiWorld game/app action inside the story;
+- launching the configured DokiWorld App action inside the story;
 - English and Simplified Chinese UI selected by the host locale.
 
 ## Install and build
@@ -30,7 +30,7 @@ npm run build
 
 The build creates the deployable `dist/` directory and bundles the SDK into the browser JavaScript.
 
-Configured games launch exclusively through the SDK `apps` capability (protocol v2). Storyteller waits for long-running games, accepts completion only from the `doki.game.result/1` output contract, and forwards the complete output as `episode.gameCompleted`. Dialog and Choice modules placed after an App continue automatically when it finishes; their prompts and fixed text can use `{{app.outcome}}`, `{{app.score}}`, `{{app.maxScore}}`, and `{{app.metrics.<key>}}`. The persisted experience protocol uses the App action's single `nextBeatId` as an internal continuation link, not as a separately authored result Episode.
+Configured Apps launch exclusively through the SDK `apps` capability (protocol v2). Storyteller waits for long-running Apps, accepts completion from the configured output contract (including legacy `doki.game.result/1`), and forwards the complete output as `episode.gameCompleted`. Dialog and Choice modules placed after an App continue automatically when it finishes; their prompts and fixed text can use `{{app.outcome}}`, `{{app.score}}`, `{{app.maxScore}}`, and `{{app.metrics.<key>}}`. The persisted experience protocol uses the App action's single `nextBeatId` as an internal continuation link, not as a separately authored result Episode.
 
 ## Use the adjacent local SDK
 
