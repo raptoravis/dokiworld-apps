@@ -439,7 +439,7 @@ button { color: inherit; }
     radial-gradient(circle at 18% 18%, rgba(87, 121, 139, .28), transparent 35%),
     radial-gradient(circle at 76% 30%, rgba(122, 69, 91, .23), transparent 42%),
     linear-gradient(180deg, rgba(12, 7, 11, .58), rgba(12, 7, 11, .88)),
-    url("/assets/chat-bg.jpg") center / cover no-repeat;
+    url("./assets/chat-bg.jpg") center / cover no-repeat;
 }
 
 .character-rail {

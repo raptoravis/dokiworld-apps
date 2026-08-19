@@ -1115,6 +1115,7 @@ var totalSegments = 0;
 var presentedSegments = 0;
 var waitingForHost = true;
 var pendingAction = null;
+var retryEpisodeRequest = null;
 var activeApp = null;
 var appCatalog = [];
 var ttsEnabled = false;
@@ -1229,6 +1230,12 @@ async function speak(text, force = false) {
 }
 function post(event) {
   if (!dokiworld.runId) return;
+  if (["episode.start", "episode.choice", "episode.reply", "episode.action", "episode.gameCompleted"].includes(event.type)) {
+    retryEpisodeRequest = () => {
+      showWaiting();
+      post(event);
+    };
+  }
   episode.send(event);
 }
 function savePlatformCheckpoint() {
@@ -1621,22 +1628,25 @@ function appendCompletedVideo(item) {
   group.append(content);
   elements.lines.append(group);
 }
-async function submitReply(value) {
+async function submitReply(value, appendMessage = true) {
   const playerInput = value.trim();
   if (!playerInput || waitingForHost) return;
-  const group = document.createElement("article");
-  group.className = "message-group is-user";
-  const speaker = document.createElement("p");
-  speaker.className = "speaker";
-  speaker.textContent = copy.you;
-  const bubble = document.createElement("div");
-  bubble.className = "message-bubble";
-  const line = document.createElement("p");
-  line.className = "line dialogue";
-  line.textContent = playerInput;
-  bubble.append(line);
-  group.append(speaker, bubble);
-  elements.lines.append(group);
+  if (appendMessage) {
+    const group = document.createElement("article");
+    group.className = "message-group is-user";
+    const speaker = document.createElement("p");
+    speaker.className = "speaker";
+    speaker.textContent = copy.you;
+    const bubble = document.createElement("div");
+    bubble.className = "message-bubble";
+    const line = document.createElement("p");
+    line.className = "line dialogue";
+    line.textContent = playerInput;
+    bubble.append(line);
+    group.append(speaker, bubble);
+    elements.lines.append(group);
+  }
+  retryEpisodeRequest = () => void submitReply(playerInput, false);
   showChatWaiting();
   try {
     const response = await dialogue.generateDialogue({
@@ -1655,6 +1665,7 @@ async function submitReply(value) {
 }
 async function requestStoryContinuation() {
   if (waitingForHost) return;
+  retryEpisodeRequest = () => void requestStoryContinuation();
   showChatWaiting();
   try {
     const response = await dialogue.generateDialogue({
@@ -1672,6 +1683,7 @@ async function requestStoryContinuation() {
   }
 }
 async function regenerateLatestDialogue() {
+  retryEpisodeRequest = () => void regenerateLatestDialogue();
   showChatWaiting();
   try {
     const response = await dialogue.regenerateDialogue({
@@ -2173,6 +2185,7 @@ function renderNext() {
   else renderNext();
 }
 function acceptEpisode(utterances) {
+  retryEpisodeRequest = null;
   if (elements.appDialog.open) elements.appDialog.close();
   elements.appFrame.removeAttribute("src");
   activeApp = null;
@@ -2191,7 +2204,17 @@ function acceptEpisode(utterances) {
   waitingForHost = false;
   renderNext();
 }
+function retryFailedEpisodeRequest() {
+  const retry = retryEpisodeRequest;
+  if (!retry) {
+    restartEpisode();
+    return;
+  }
+  retryEpisodeRequest = null;
+  retry();
+}
 function restartEpisode() {
+  retryEpisodeRequest = null;
   queue = [];
   totalSegments = 0;
   presentedSegments = 0;
@@ -2280,7 +2303,7 @@ elements.video.addEventListener("error", () => {
   if (activeVideo) renderNext();
 });
 elements.restart.addEventListener("click", restartEpisode);
-elements.errorRetry.addEventListener("click", restartEpisode);
+elements.errorRetry.addEventListener("click", retryFailedEpisodeRequest);
 elements.continueForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const value = elements.continueReply.value;
@@ -2484,7 +2507,10 @@ dokiworld.connect({
       elements.generateImage.disabled = false;
       elements.generateVideo.disabled = false;
     }
-    if (message.type === "episode.game" && pendingAction) void openConfiguredApp(message.gameConfig);
+    if (message.type === "episode.game" && pendingAction) {
+      retryEpisodeRequest = () => void openConfiguredApp(message.gameConfig);
+      void openConfiguredApp(message.gameConfig);
+    }
     if (message.type === "episode.fixedGameResult") completeHostedConfiguredApp(message.result);
     if (message.type === "episode.gameResolved") {
       completeHostedConfiguredApp(message.result, message.utterances, message.partial === true);

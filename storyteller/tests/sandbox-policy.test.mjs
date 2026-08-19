@@ -33,6 +33,15 @@ test("Storyteller business code uses the typed SDK extension instead of wire mes
   assert.doesNotMatch(source, /dokiworld-app-(?:episode|chat)/);
 });
 
+test("Storyteller retries the failed Episode step without restarting the episode", async () => {
+  const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+
+  assert.match(source, /errorRetry\.addEventListener\("click", retryFailedEpisodeRequest\)/);
+  assert.match(source, /async function submitReply\(value, appendMessage = true\)/);
+  assert.match(source, /retryEpisodeRequest = \(\) => void submitReply\(playerInput, false\)/);
+  assert.doesNotMatch(source, /errorRetry\.addEventListener\("click", restartEpisode\)/);
+});
+
 test("Storyteller renders partial game resolution segments and removes them from the final payload", async () => {
   const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert.match(source, /message\.partial === true/);
@@ -78,6 +87,13 @@ test("wide Storyteller dialogue does not recreate the empty dark column", async 
     assert.doesNotMatch(styles, /\.message-group\.is-ai\s*\{[^}]*--chat-message-max/s);
     assert.doesNotMatch(styles, /\.message-group\.is-ai\s*\{[^}]*76cqw/s);
   });
+});
+
+test("Storyteller loads its bundled chat background instead of the static-site root", async () => {
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  assert.match(styles, /url\("\.\/assets\/chat-bg\.jpg"\)/);
+  assert.doesNotMatch(styles, /static\.aimeng\.ai\/assets\/chat-bg\.jpg|url\("\/assets\/chat-bg\.jpg"\)/);
 });
 
 test("deployable assets and manifest are versioned together", async () => {
