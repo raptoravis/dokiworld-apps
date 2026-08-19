@@ -2076,7 +2076,6 @@ function appendHostedResolutionPartial(result2, utterances) {
   const interpolated = interpolateAppResultUtterances(utterances, result2);
   const items = episodeItems(interpolated).filter(({ segment }) => ["dialogue", "action", "thought", "narration"].includes(segment.type) && typeof segment.text === "string" && segment.text.trim());
   if (!items.length) return;
-  clearGameResultThinking();
   showDialogueHistory();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
@@ -2123,6 +2122,7 @@ function appendHostedResolutionPartial(result2, utterances) {
     line.textContent = item.segment.text;
     bubble.append(line);
   });
+  if (hostedResultThinking) elements.lines.append(hostedResultThinking);
   elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
 }
 function removeStreamedResolutionSegments(utterances) {

@@ -12,7 +12,7 @@ test("a hosted game result shows an accessible three-dot generation indicator", 
   assert.match(styles, /@keyframes game-result-thinking-jump/);
 });
 
-test("the generation indicator is removed when result prose starts or completes", () => {
+test("the generation indicator remains after partial prose until the result completes", () => {
   const partialHandler = appSource.slice(
     appSource.indexOf("function appendHostedResolutionPartial"),
     appSource.indexOf("function removeStreamedResolutionSegments"),
@@ -21,6 +21,7 @@ test("the generation indicator is removed when result prose starts or completes"
     appSource.indexOf("function completeHostedConfiguredApp"),
     appSource.indexOf("function requestAction"),
   );
-  assert.match(partialHandler, /clearGameResultThinking\(\)/);
+  assert.doesNotMatch(partialHandler, /clearGameResultThinking\(\)/);
+  assert.match(partialHandler, /elements\.lines\.append\(hostedResultThinking\)/);
   assert.match(completionHandler, /clearGameResultThinking\(\)/);
 });

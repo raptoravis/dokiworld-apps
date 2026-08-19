@@ -1315,7 +1315,6 @@ function appendHostedResolutionPartial(result, utterances) {
     && segment.text.trim()
   ));
   if (!items.length) return;
-  clearGameResultThinking();
   showDialogueHistory();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
@@ -1368,6 +1367,10 @@ function appendHostedResolutionPartial(result, utterances) {
     line.textContent = item.segment.text;
     bubble.append(line);
   });
+  // Partial prose is not the end of the resolution. Keep the activity
+  // indicator after the streamed copy until the final response arrives and
+  // the Continue story action can be attached.
+  if (hostedResultThinking) elements.lines.append(hostedResultThinking);
   elements.dialogueView.scrollTo({ top: elements.dialogueView.scrollHeight, behavior: "smooth" });
 }
 
