@@ -1,4 +1,4 @@
-# DokiWorld App SDK：Game / World 开发、协议与交付指南
+# DokiWorld App SDK：App 开发、协议与交付指南
 
 本文是使用 `@dokiworld/app-sdk` 开发 DokiWorld iframe App 的规范指南。适用于 Game、World 和操作型 App。可运行示例参考 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)；仓库中的 `game-match3`、`storyteller` 与 `banquet-contract` 分别展示 Game、通用 Episode World 和定制 World。
 
