@@ -19,6 +19,9 @@ export async function generateManifest(output = manifestPath) {
   if (!semverPattern.test(packageJson.version)) {
     throw new Error("package.json version must be semver");
   }
+  if (manifest.schemaVersion !== 3 || manifest.protocolVersion !== undefined) {
+    throw new Error("App manifest must use schemaVersion 3 without top-level protocolVersion");
+  }
   manifest.version = packageJson.version;
   await writeFile(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return output;

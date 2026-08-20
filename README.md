@@ -178,7 +178,7 @@ App 的 manifest 和 `runtime` 至少应声明：
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "my-new-app",
   "runtime": {
     "protocol": "dokiworld.app",
@@ -225,7 +225,7 @@ manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description
 
 ### 5. 完成自包含 App manifest
 
-新的 schema v2 App 不需要额外的平台注册文件。manifest 自身应完整声明：
+新的 schema v3 App 不需要额外的平台注册文件。manifest 自身应完整声明：
 
 - `status`，值为 `active`、`deprecated` 或 `disabled`；
 - 实际使用的 required/optional context scopes；

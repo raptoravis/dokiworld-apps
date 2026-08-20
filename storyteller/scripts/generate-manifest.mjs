@@ -1,6 +1,6 @@
 // 按 docs/external-game-provider-integration.zh-CN.md 生成 storyteller 的 manifest。
 //
-// storyteller 是使用 episode extension 的 schema v2、dokiworld.app/2 App。
+// storyteller 是使用 episode extension 的 schema v3、dokiworld.app/2 App。
 // 本脚本以模块内的 JS 对象作为单一事实来源，校验后输出 src/manifest.json，
 // 让 manifest 不再手写、始终与文档规范一致。build.mjs 会在生成 dist 前调用它。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,7 +19,7 @@ const REQUIRED_LOCALES = ["en", "zh-cn"];
 // —— manifest 单一事实来源 ——
 // 字段顺序即输出顺序，与原 src/manifest.json 保持一致。
 const manifest = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   version: packageJson.version,
   id: "storyteller",
   status: "active",
@@ -57,9 +57,9 @@ function validate(target, src = srcDir) {
   if (!existsSync(resolve(src, target.entry))) {
     errors.push(`entry "${target.entry}" 在 src/ 下不存在`);
   }
-  if (target.schemaVersion !== 2) errors.push("schemaVersion 必须为 2");
+  if (target.schemaVersion !== 3) errors.push("schemaVersion 必须为 3");
   if (!SEMVER_PATTERN.test(target.version)) errors.push("version 必须来自 package.json 且符合 semver");
-  if (target.protocolVersion !== undefined) errors.push("schemaVersion 2 不得声明顶层 protocolVersion");
+  if (target.protocolVersion !== undefined) errors.push("schemaVersion 3 不得声明顶层 protocolVersion");
   if (target.runtime?.protocol !== "dokiworld.app" || target.runtime?.protocolVersion !== 2) {
     errors.push("runtime 必须使用 dokiworld.app v2");
   }

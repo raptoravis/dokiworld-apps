@@ -31,7 +31,7 @@ DokiWorld catalog → iframe Host ↔ @dokiworld/app-sdk ↔ App
 - `package.json.version` 是发布版本的唯一事实来源；manifest 生成器把它写入 manifest。
 - `dist/manifest.json` 是交付清单，不手工编辑 `dist/`。
 - App manifest 自包含启停状态、启动策略、context scopes 和 runtime contract，不需要额外的 `external-apps.json`。
-- `selection.promptHint` 是对话拉起资格的唯一来源；只有同时提供有效双语提示的 App 才进入候选。其他 App 从明确的产品入口启动。
+- 对于 `schemaVersion >= 3`，`selection.promptHint` 是对话拉起资格的唯一来源；只有同时提供有效双语提示的 App 才进入候选。其他 App 从明确的产品入口启动。
 - 英文是规范产品语言，同时维护对应的简体中文内容。
 
 ## 2. 建立项目
@@ -89,11 +89,11 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
 
 ## 3. App manifest
 
-新 App 使用 `schemaVersion: 2`。下面是一个可由对话拉起并返回标准结算结果的完整示例：
+新 App 使用 `schemaVersion: 3`。下面是一个可由对话拉起并返回标准结算结果的完整示例：
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "version": "1.0.0",
   "id": "my-app",
   "status": "active",
@@ -151,6 +151,13 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
 }
 ```
 
+版本兼容规则：
+
+- `schemaVersion < 3` 属于旧协议。Host 为兼容历史数据，可以把 `chatLaunchable: true` 或有效的双语 `selection.promptHint` 视为允许对话拉起的信号。
+- `schemaVersion >= 3` 属于新协议。`chatLaunchable` 已移除，即使输入中残留该字段，Host 也必须忽略；是否允许对话拉起只由有效的双语 `selection.promptHint` 决定。
+- 仅声明 `selection` 或空的 `selection.promptHint` 不会使 App 进入对话候选。`promptHint.en` 和 `promptHint.zh-cn` 都必须是非空字符串。
+- `launch_app_selectors` 等 selector 只表示内容卡允许关联或启动哪些 App，不是 App 的 World 身份标记，也不能改变 Character、Multi-character 或 World 等内容卡类型。
+
 Manifest 规则：
 
 - `status` 必须是 `active`、`deprecated` 或 `disabled`。
@@ -166,11 +173,11 @@ Manifest 规则：
 
 ## 4. Episode App manifest
 
-使用 Episode 协议的 App 仍使用同一套 `schemaVersion: 2` manifest，运行能力只在 `runtime.modules` 中声明：
+使用 Episode 协议的 App 仍使用同一套 `schemaVersion: 3` manifest，运行能力只在 `runtime.modules` 中声明：
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "version": "1.0.0",
   "id": "my-episode-app",
   "status": "active",
@@ -261,7 +268,7 @@ import { readFile, writeFile } from "node:fs/promises";
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const manifest = {
   // 固定字段与完整 runtime/locales 配置
-  schemaVersion: 2,
+  schemaVersion: 3,
   version: packageJson.version,
   id: "my-app",
   status: "active"
@@ -659,6 +666,7 @@ App 版本、manifest schema、runtime protocol 和业务 contract version 是�
 
 - [ ] ID 在目录、manifest 和 `createAppClient({ appId })` 中一致。
 - [ ] manifest 与 package 版本一致，`dist/manifest.json` 由构建生成。
+- [ ] 新 manifest 使用 `schemaVersion: 3`，且不声明已移除的 `chatLaunchable`。
 - [ ] 只有需要对话拉起时才提供有效的双语 `selection.promptHint`；其他 App 不声明该字段。
 - [ ] App 不包含角色资料副本，并只声明实际使用的 context scopes。
 - [ ] manifest module、Client module 和真实业务调用一致；目标 Host profile 提供全部声明能力。

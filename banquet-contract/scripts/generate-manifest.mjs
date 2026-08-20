@@ -19,8 +19,8 @@ export async function generateManifest(output = manifestPath) {
   if (!semverPattern.test(packageJson.version)) {
     throw new Error("package.json version must be semver");
   }
-  if (manifest.schemaVersion !== 2 || manifest.protocolVersion !== undefined) {
-    throw new Error("App manifest must use schemaVersion 2 without top-level protocolVersion");
+  if (manifest.schemaVersion !== 3 || manifest.protocolVersion !== undefined) {
+    throw new Error("App manifest must use schemaVersion 3 without top-level protocolVersion");
   }
   if (manifest.runtime?.protocol !== "dokiworld.app" || manifest.runtime?.protocolVersion !== 2) {
     throw new Error("App runtime must use dokiworld.app/2");
@@ -29,7 +29,7 @@ export async function generateManifest(output = manifestPath) {
     !Array.isArray(manifest.context?.requiredScopes)
     || !Array.isArray(manifest.context?.optionalScopes)
   ) {
-    throw new Error("App manifest context scopes must use the schemaVersion 2 shape");
+    throw new Error("App manifest context scopes must use the schemaVersion 3 shape");
   }
   manifest.version = packageJson.version;
   await writeFile(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");

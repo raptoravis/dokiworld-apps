@@ -79,7 +79,7 @@ test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
   assert.match(source, /type:\s*"episode\.gameCompleted"/);
   assert.doesNotMatch(source, /type:\s*"episode\.gameResult"/);
   assert.doesNotMatch(source, /type:\s*"chat\.generateMedia"/);
-  assert.equal(manifest.schemaVersion, 2);
+  assert.equal(manifest.schemaVersion, 3);
   assert.equal(manifest.protocolVersion, undefined);
   assert.equal(manifest.runtime.protocolVersion, 2);
   assert.ok(manifest.context.optionalScopes.includes("character.card"));
