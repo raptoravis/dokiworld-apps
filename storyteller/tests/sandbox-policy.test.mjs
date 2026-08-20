@@ -33,6 +33,16 @@ test("Storyteller business code uses the typed SDK extension instead of wire mes
   assert.doesNotMatch(source, /dokiworld-app-(?:episode|chat)/);
 });
 
+test("Storyteller keeps dialogue requests alive for the host LLM timeout budget", async () => {
+  const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+
+  assert.match(source, /const DIALOGUE_OPERATION_TIMEOUT_MS = 80_000/);
+  assert.match(
+    source,
+    /createDialogueClientExtension\(dokiworld,\s*\{\s*timeoutMs: DIALOGUE_OPERATION_TIMEOUT_MS,?\s*\}\)/,
+  );
+});
+
 test("Storyteller retries the failed Episode step without restarting the episode", async () => {
   const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 

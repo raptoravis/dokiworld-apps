@@ -882,6 +882,7 @@ function resolveConfiguredAppResult(output, nextBeatId = null) {
 
 // src/app.js
 var WORLD_ID = "storyteller";
+var DIALOGUE_OPERATION_TIMEOUT_MS = 8e4;
 var APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1e3;
 var COPY = {
   en: {
@@ -1102,7 +1103,9 @@ var dokiworld = createAppClient({
   extensions: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"]
 });
 var episode = createEpisodeClientExtension(dokiworld);
-var dialogue = createDialogueClientExtension(dokiworld);
+var dialogue = createDialogueClientExtension(dokiworld, {
+  timeoutMs: DIALOGUE_OPERATION_TIMEOUT_MS
+});
 var media = createMediaClientExtension(dokiworld);
 var speech = createSpeechClientExtension(dokiworld);
 var storage = createStorageClientExtension(dokiworld);
@@ -2077,6 +2080,7 @@ function appendHostedResolutionPartial(result2, utterances) {
   const items = episodeItems(interpolated).filter(({ segment }) => ["dialogue", "action", "thought", "narration"].includes(segment.type) && typeof segment.text === "string" && segment.text.trim());
   if (!items.length) return;
   showDialogueHistory();
+  hostedResultThinking?.remove();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
     const speakerName = item.speakerName || experience?.title || copy.kicker;

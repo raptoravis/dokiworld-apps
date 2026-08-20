@@ -18,6 +18,10 @@ import {
 } from "./episode-game-result.js";
 
 const WORLD_ID = "storyteller";
+// The host owns the 75-second dialogue deadline. Keep a small delivery grace
+// beyond it so the SDK does not win a timer race while the host is returning
+// either the completed turn or its authoritative timeout response.
+const DIALOGUE_OPERATION_TIMEOUT_MS = 80_000;
 const APP_LAUNCH_TIMEOUT_MS = 60 * 60 * 1_000;
 
 const COPY = {
@@ -241,7 +245,9 @@ const dokiworld = createAppClient({
   extensions: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
 });
 const episode = createEpisodeClientExtension(dokiworld);
-const dialogue = createDialogueClientExtension(dokiworld);
+const dialogue = createDialogueClientExtension(dokiworld, {
+  timeoutMs: DIALOGUE_OPERATION_TIMEOUT_MS,
+});
 const media = createMediaClientExtension(dokiworld);
 const speech = createSpeechClientExtension(dokiworld);
 const storage = createStorageClientExtension(dokiworld);
@@ -1316,6 +1322,10 @@ function appendHostedResolutionPartial(result, utterances) {
   ));
   if (!items.length) return;
   showDialogueHistory();
+  // The indicator sits after the streamed message. Temporarily detach it so
+  // the previous same-speaker group becomes the tail and receives the next
+  // partial segments instead of forcing a new bubble for every chunk.
+  hostedResultThinking?.remove();
   items.forEach((item) => {
     hostedResultStreamedKeys.push(streamedResolutionKey(item.segment));
     const speakerName = item.speakerName || experience?.title || copy.kicker;

@@ -22,6 +22,7 @@ test("the generation indicator remains after partial prose until the result comp
     appSource.indexOf("function requestAction"),
   );
   assert.doesNotMatch(partialHandler, /clearGameResultThinking\(\)/);
+  assert.match(partialHandler, /hostedResultThinking\?\.remove\(\)/);
   assert.match(partialHandler, /elements\.lines\.append\(hostedResultThinking\)/);
   assert.match(completionHandler, /clearGameResultThinking\(\)/);
 });
