@@ -1,6 +1,6 @@
 # DokiWorld App SDK：App 开发、协议与交付指南
 
-本文是使用 `@dokiworld/app-sdk` 开发 DokiWorld iframe App 的规范指南。所有 iframe 交互内容都使用同一种 App 模型；是否允许对话拉起、是否渲染 Episode 以及需要哪些 Host capability，均由 manifest 字段声明，而不是由预设内容类型决定。可运行示例参考 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)；仓库中的 `game-match3`、`storyteller` 与 `banquet-contract` 展示不同交互流程的 App。
+本文是使用 `@dokiworld/app-sdk` 开发 DokiWorld iframe App 的规范指南。所有 iframe 交互内容都使用同一种 App 模型；是否允许对话拉起以及需要哪些 Host capability，均由 manifest 字段声明，而不是由预设内容类型决定。可运行示例参考 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)；仓库中的 `game-match3`、`storyteller` 与 `banquet-contract` 展示不同交互流程的 App。
 
 UI Extension 不属于 iframe App。它使用 `@dokiworld/extension-sdk`，安装和运行模型见 [`ui-extension-system.zh-CN.md`](ui-extension-system.zh-CN.md)。
 
@@ -164,9 +164,9 @@ Manifest 规则：
 - `launchRequirements.minPlayers` 是总参与方数量，不是 AI 座位数或最大人数。
 - 如果 App 返回 `doki.game.result/1`，`result.metrics` 声明其可能返回的 metric 名称。创建 Episode 时，编辑器会根据所选 App 将它们列为 `{{app.metrics.<name>}}` 可用变量；不要声明运行时永远不会返回的名称。
 
-## 4. Episode Renderer App manifest
+## 4. Episode App manifest
 
-渲染 Episode 的 App 仍使用同一套 `schemaVersion: 2` manifest，运行协议只在 `runtime` 中声明：
+使用 Episode 协议的 App 仍使用同一套 `schemaVersion: 2` manifest，运行能力只在 `runtime.extensions` 中声明：
 
 ```json
 {
@@ -191,7 +191,6 @@ Manifest 规则：
     ],
     "extensions": ["episode", "chat", "checkpoint", "apps"]
   },
-  "episodeRenderer": true,
   "launchRequirements": {
     "minPlayers": 1
   },
@@ -215,7 +214,7 @@ Manifest 规则：
 支持 Episode 的 App 规则：
 
 - 不得声明顶层 `protocolVersion`；catalog 从 `runtime.protocolVersion` 派生兼容字段。
-- `episodeRenderer: true` 表示 App 可以渲染内容卡中的 Episode 配置；它不属于 `runtime.extensions`，也不能替代 `episode` 扩展声明。
+- `episode` extension 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；是否使用其中的 `experience.config` 由 App 自己决定。
 - App manifest 不内嵌角色副本。当前角色、内容卡和 persona 来自 Host init 中实际授权的 context/input。
 - 所有 App 都同步到 `frontend/public/apps/<id>`，manifest 不再声明 `kind`。
 - `chatLaunchable` 省略或设为 `false`，表示该 App 只从明确的 Episode 或其他产品入口启动。
@@ -342,7 +341,7 @@ App 不读取 DokiWorld token、Cookie 或内部 HTTP 接口。认证、API key�
 | `@dokiworld/app-sdk/game-result` | `doki.game.result/1` 创建、解析和校验 |
 | `@dokiworld/app-sdk/runtime-extensions` | 已知扩展名常量 `RUNTIME_EXTENSIONS` 与 `RuntimeExtension` 联合类型 |
 
-未声明的扩展消息会被拒绝；Host 没有实现的 operation 返回稳定的 `unsupported-operation`。具体调用方式见 [`packages/app-sdk/README.zh-CN.md`](../packages/app-sdk/README.zh-CN.md)，Episode 专属机制见 [`episode-app-sdk-integration.zh-CN.md`](episode-app-sdk-integration.zh-CN.md)。
+未声明的扩展消息会被拒绝；Host 没有实现的 operation 返回稳定的 `unsupported-operation`。各 capability 的完整接口见 [`packages/app-sdk/README.zh-CN.md`](../packages/app-sdk/README.zh-CN.md)。
 
 ## 8. App 结算与中途退出
 
@@ -374,7 +373,228 @@ onPrepareExit: () => ({
 
 消费方使用 `parseGameResult()` 解析不可信 output。承载 Episode 的 App 使用 `episode.gameCompleted` 转发完整、带版本的 output，并可按 outcome、分数和 metrics 配置不同后续分支。`GameResult`、`doki.game.result` 与 `episode.gameCompleted` 是兼容性稳定的 SDK/API 名称，不表示 App 被划分为 Game 类型。
 
-## 9. 构建与打包
+## 9. Episode 运行模型
+
+Episode extension 把 wire message 隐藏在 SDK 内。App 和 Host 只处理经过方向、类型及 payload 校验的语义事件，业务代码不维护 `dokiworld-app-episode-*` 字符串，也不自行解析任意 `message`。
+
+```mermaid
+sequenceDiagram
+    participant Card as Content card
+    participant Host as DokiWorld Host
+    participant EC as Episode Client extension
+    participant App as Episode App
+    participant Nested as Nested App
+
+    Card->>Host: experience.config
+    Host->>App: dokiworld.app/2 init
+    App->>EC: episode.start / choice / reply / action
+    EC->>Host: validated semantic event
+    Host->>EC: episode.content / episode.game
+    EC->>App: validated semantic event
+    App->>Nested: apps.launch()
+    Nested-->>App: versioned output
+    App->>EC: episode.gameCompleted
+    EC->>Host: resolve route / generate continuation
+```
+
+参考实现位于 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)：`storyteller` 展示通用 Episode 播放流程，`banquet-contract` 展示专用场景逻辑，`game-match3` 展示通过 `doki.game.result/1` 返回的嵌套 App。
+
+### 9.1 初始化与 extension
+
+Host 在 init input 中按当前授权提供运行数据：
+
+```ts
+{
+  apps: [...],
+  experience: {
+    characterId,
+    title,
+    description,
+    portraitUrl,
+    avatarUrl,
+    tags,
+    config: episodeExperience
+  }
+}
+```
+
+- `experience.config` 包含声明式 beats、资源、选项、App Action 和结果路由；App 可以使用或忽略它。
+- `apps` 是本次允许启动的 v2 App 目录。
+- Character、内容卡和 persona 来自本次 Host context，不复制到 manifest。
+- input 必须是合法 JSON 值，不能包含 `undefined`、函数或循环引用。
+
+App 使用 Episode Client extension：
+
+```js
+import { createAppClient } from "@dokiworld/app-sdk";
+import { createEpisodeClientExtension } from "@dokiworld/app-sdk/episode";
+
+const app = createAppClient({
+  appId: "storyteller",
+  extensions: ["episode", "apps", "checkpoint"],
+});
+const episode = createEpisodeClientExtension(app);
+
+app.connect({
+  onInit: ({ input }) => loadExperience(input.data.experience),
+});
+
+const unsubscribe = app.onMessage((envelope) => {
+  const event = episode.receive(envelope);
+  if (event) handleEpisodeEvent(event);
+});
+```
+
+Host 使用同一模块的 Host adapter：
+
+```js
+import { createEpisodeHostExtension } from "@dokiworld/app-sdk/episode";
+
+const episode = createEpisodeHostExtension(host);
+host.onMessage((envelope) => {
+  const event = episode.receive(envelope);
+  if (event) handleAppRequest(event);
+});
+
+episode.send({ type: "episode.content", utterances });
+```
+
+App 卸载或 run 结束时必须释放订阅。SDK 会拒绝方向错误、未知或 payload 不合法的事件。
+
+### 9.2 配置与运行时事件
+
+配置描述可预先确定的 Episode 结构；事件只表示当前 run 中玩家执行的操作和 Host 返回的增量。如果 `nextBeatId`、本地剧情路径或 App Action 的 input 与结果路由已经完全配置，App 可以本地推进，不必请求 Host 或 LLM。
+
+Client → Host：
+
+| 事件 | 主要字段 | 用途 |
+| --- | --- | --- |
+| `episode.start` | 无 | 开始或继续 Episode |
+| `episode.restart` | 无 | 清理进度并重新开始 |
+| `episode.choice` | `beatId`, `optionId` | 处理需要 Host 参与的选项 |
+| `episode.reply` | `playerInput`, `playerPersona?` | 处理自由文本回复 |
+| `episode.action` | `beatId` | 解析需要 Host 参与的 App Action |
+| `episode.gameCompleted` | `output`, `configId?` | 转发嵌套 App 的版本化结果 |
+| `chat.regenerate` | `playerPersona?` | 重新生成最近内容 |
+| `chat.suggest` | `playerPersona?` | 请求回复建议 |
+
+Host → Client：
+
+| 事件 | 主要字段 |
+| --- | --- |
+| `episode.content` | `utterances` |
+| `episode.resuming` | 无 |
+| `episode.error` | `code` |
+| `episode.game` | `gameConfig` |
+| `episode.fixedGameResult` | `result` |
+| `episode.gameResolved` | `result`, `utterances` |
+| `chat.regenerated` | `utterances` |
+| `chat.suggestions` | `suggestions` |
+
+`episode.gameResult`、`chat.generateMedia`、`chat.media` 和 `chat.mediaError` 只保留用于兼容。新代码使用 `episode.gameCompleted`；媒体生成直接使用 `@dokiworld/app-sdk/media`。
+
+### 9.3 启动嵌套 App
+
+承载 Episode 的 App 使用 `@dokiworld/app-sdk/apps` 启动嵌套 v2 App：
+
+```js
+import { createAppsClientExtension } from "@dokiworld/app-sdk/apps";
+
+const apps = createAppsClientExtension(app, {
+  timeoutMs: 30_000,
+  launchTimeoutMs: 60 * 60 * 1_000,
+});
+
+const launch = await apps.launch({
+  appId: action.appId,
+  input: {
+    contract: action.inputContract,
+    version: action.inputVersion,
+    data: action.input,
+  },
+});
+```
+
+`apps.launch()` 是长时间运行的交互，使用独立 launch timeout。完成状态必须带有 manifest 声明过的 output contract；取消状态不带 output。只有兼容旧 App 时才在当前 App 内创建嵌套 `createAppHost()`。
+
+嵌套 App 完成后，把完整且带版本的 output 交给 Episode Host：
+
+```js
+episode.send({
+  type: "episode.gameCompleted",
+  configId: action.id,
+  output: launch.output,
+});
+```
+
+Host 需要生成后续剧情时返回 `episode.gameResolved`；本地可确定的结果可以通过 `episode.fixedGameResult` 或配置中的固定路径继续。
+
+### 9.4 App 结果与 Episode 后续模块
+
+在编辑器中，App 是 Episode 内的普通流程模块。直接在 App 后添加 Dialog 或 Choice，它们会取得最近一次进入当前路径的 App 结算上下文。持久化配置通过 Action beat 的 `nextBeatId` 指向后续模块：
+
+```json
+{
+  "id": "match-three",
+  "position": 10,
+  "action": {
+    "type": "game",
+    "appId": "game-match3"
+  },
+  "nextBeatId": "after-match"
+}
+```
+
+可用模板变量：
+
+| 变量 | 值 |
+| --- | --- |
+| `{{app.outcome}}` | `win`、`loss`、`draw`、`completed` 或 `exited` |
+| `{{app.score}}` | `normalizedScore`，范围为 0 到 100 |
+| `{{app.maxScore}}` | 归一化分数上限 100 |
+| `{{app.metrics.<key>}}` | App 返回的自定义指标 |
+
+返回标准结果的 App 应通过 manifest 的 `result.metrics` 声明可能返回的指标：
+
+```json
+{
+  "result": {
+    "metrics": ["points", "moves", "cleared", "bestCascade"]
+  }
+}
+```
+
+变量从 App 后的第一个模块开始生效，并沿 Choice 路径继续传递，可用于：
+
+- AI Dialog 的 generation prompt；
+- 固定 Dialog 的 dialogue、action、thought 和 narration；
+- Choice 描述和选项标签；
+- Choice 后续的 Dialog 或 Choice。
+
+例如：
+
+```text
+玩家以 {{app.outcome}} 结束挑战，得分为 {{app.score}}/{{app.maxScore}}，
+并使用了 {{app.metrics.moves}} 步。请根据结果生成符合角色性格的回应。
+```
+
+`inventory` 是 DokiWorld 按账号持久化的背包，不属于 App 结果。Episode 文案可以使用 `{{inventory.key}}`。模板支持 `>`、`>=`、`<`、`<=`、`==` 和 `!=`，例如 `{{inventory.key > inventory.map}}` 或 `{{app.score >= 50}}`。
+
+缺失或非数值字段会保留原模板表达式，以便作者发现配置问题。metric 值应为字符串、数字或布尔值。玩家中途退出时应从 `onPrepareExit` 返回 `outcome: "exited"`、当前 `normalizedScore` 和 metrics。统一使用 `{{app.*}}`，不要新增旧的 `{{game.*}}` 写法。
+
+### 9.5 Episode 验证要求
+
+除通用验收清单外，Episode App 还应覆盖：
+
+- 双向事件方向与 payload 校验；
+- 业务源码不手写 wire message；
+- manifest、Client 和 Host 的 extension 声明一致；
+- 静态路径与 Host/LLM 路径的分流；
+- App completed、cancelled、exited 和不同结果 route；
+- 重复 completion 不导致重复剧情或持久化；
+- run 结束后的 subscription、timer、iframe 和嵌套 Host cleanup。
+
+## 10. 构建与打包
 
 建议 build 顺序：
 
@@ -397,7 +617,7 @@ dist/
 
 资源 URL 使用相对路径（Vite 通常设置 `base: "./"`）。不要只发布 HTML/JavaScript 而遗漏字体、图片、视频或动态分包；不要把源码、token、`.env`、API key、测试凭据或私有 DokiWorld 模块放入 `dist/`。
 
-## 10. 本地同步与 Host 验证
+## 11. 本地同步与 Host 验证
 
 从 DokiWorld 主仓库显式指定 App 仓库：
 
@@ -421,7 +641,7 @@ npm run sync:clean-apps
 npm run generate:catalogs --workspace dokiworld-chat-mvp
 ```
 
-## 11. 发布与升级
+## 12. 发布与升级
 
 发布一次 App 变更时：
 
@@ -435,7 +655,7 @@ npm run generate:catalogs --workspace dokiworld-chat-mvp
 
 App 版本、manifest schema、runtime protocol 和业务 contract version 是四个不同维度，不应联动硬编码。
 
-## 12. 验收清单
+## 13. 验收清单
 
 - [ ] ID 在目录、manifest 和 `createAppClient({ appId })` 中一致。
 - [ ] manifest 与 package 版本一致，`dist/manifest.json` 由构建生成。

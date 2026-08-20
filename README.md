@@ -134,7 +134,7 @@ App SDK 维护统一的已知扩展注册表；manifest 不再声明 `kind`。`c
 | World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
 | World Nested App Host | `checkpoint`、`progress`、`resize` |
 
-`episodeRenderer` 是 App catalog 能力，不是 runtime extension；使用 Episode 消息的 App 仍须声明 `episode`，使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
+`episode` extension 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；App 可以按自身实现使用或忽略 `experience.config`。使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
 
 `memory` 和 `footprint` 分别读取当前人物卡的长期记忆与互动足迹。App 必须同时声明同名 runtime extension 和 context scope；Host 会把读取固定到当前人物卡与已登录用户，App 不传 `characterId`，也不会收到账号 ID 或来源会话 ID。
 

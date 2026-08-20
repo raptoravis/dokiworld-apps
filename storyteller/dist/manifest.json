@@ -32,7 +32,6 @@
       "checkpoint"
     ]
   },
-  "episodeRenderer": true,
   "launchRequirements": {
     "minPlayers": 1
   },

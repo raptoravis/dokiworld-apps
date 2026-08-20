@@ -1,6 +1,6 @@
 // 按 docs/external-game-provider-integration.zh-CN.md 生成 storyteller 的 manifest。
 //
-// storyteller 是 schema v2 manifest、dokiworld.app/2 runtime 的 App（episodeRenderer）。
+// storyteller 是使用 episode extension 的 schema v2、dokiworld.app/2 App。
 // 本脚本以模块内的 JS 对象作为单一事实来源，校验后输出 src/manifest.json，
 // 让 manifest 不再手写、始终与文档规范一致。build.mjs 会在生成 dist 前调用它。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -32,7 +32,6 @@ const manifest = {
     outputs: [{ contract: "doki.world.session-result", version: 1 }],
     extensions: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
   },
-  episodeRenderer: true,
   launchRequirements: { minPlayers: 1 },
   context: {
     requiredScopes: [],
