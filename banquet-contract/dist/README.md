@@ -1,6 +1,6 @@
 # DokiWorld Banquet Contract
 
-A static DokiWorld App built on the `dokiworld.app/2` runtime protocol. It is not chat-launchable, uses the App SDK lifecycle and Episode extension, and retains a compatibility bridge for launching a nested App.
+A static DokiWorld App built on the `dokiworld.app/2` runtime protocol. It is launched from explicit product entry points, uses the App SDK lifecycle and Episode module, and retains a compatibility bridge for launching a nested App.
 
 ## Install and build
 

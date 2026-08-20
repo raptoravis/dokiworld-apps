@@ -31,7 +31,7 @@ DokiWorld catalog → iframe Host ↔ @dokiworld/app-sdk ↔ App
 - `package.json.version` 是发布版本的唯一事实来源；manifest 生成器把它写入 manifest。
 - `dist/manifest.json` 是交付清单，不手工编辑 `dist/`。
 - App manifest 自包含启停状态、启动策略、context scopes 和 runtime contract，不需要额外的 `external-apps.json`。
-- `chatLaunchable` 决定 App 是否可由对话拉起；仅这类 App 需要 `selection`。其他 App 从明确的产品入口启动。
+- `selection.promptHint` 是对话拉起资格的唯一来源；只有同时提供有效双语提示的 App 才进入候选。其他 App 从明确的产品入口启动。
 - 英文是规范产品语言，同时维护对应的简体中文内容。
 
 ## 2. 建立项目
@@ -96,7 +96,6 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
   "schemaVersion": 2,
   "version": "1.0.0",
   "id": "my-app",
-  "chatLaunchable": true,
   "status": "active",
   "capability": "app.puzzle.example",
   "entry": "index.html",
@@ -147,7 +146,7 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
         "version": 1
       }
     ],
-    "extensions": ["resize", "progress", "checkpoint"]
+    "modules": ["resize", "progress", "checkpoint"]
   }
 }
 ```
@@ -155,9 +154,10 @@ npm install "@dokiworld/app-sdk@^3.0.0" --save
 Manifest 规则：
 
 - `status` 必须是 `active`、`deprecated` 或 `disabled`。
+- `runtime.modules` 必须显式声明；不使用可选运行能力时写空数组 `[]`。
 - `capability` 是稳定、语言无关的能力标识。
-- `chatLaunchable` 可省略，省略时按 `false` 处理。只有显式设为 `true` 时 App 才能成为对话拉起候选；设为 `false` 或省略时只能从其他产品入口打开。字段存在时必须是布尔值。
-- `chatLaunchable: true` 时，`selection.promptHint.en` 与 `selection.promptHint.zh-cn` 必填，并会进入 LLM 的候选 App 提示。
+- 同时存在有效的 `selection.promptHint.en` 与 `selection.promptHint.zh-cn` 时，App 会进入 LLM 的候选提示；两者都必须是非空字符串。
+- 不需要由对话拉起的 App 不声明 `selection.promptHint`。
 - `activationPolicy` 为 `explicit` 或 `explicit-or-contextual`。
 - `avoidHint`、tags、intents 和正反 examples 可选，用于降低误触发。
 - aliases 用于玩家明确点名匹配。
@@ -166,7 +166,7 @@ Manifest 规则：
 
 ## 4. Episode App manifest
 
-使用 Episode 协议的 App 仍使用同一套 `schemaVersion: 2` manifest，运行能力只在 `runtime.extensions` 中声明：
+使用 Episode 协议的 App 仍使用同一套 `schemaVersion: 2` manifest，运行能力只在 `runtime.modules` 中声明：
 
 ```json
 {
@@ -189,7 +189,7 @@ Manifest 规则：
         "version": 1
       }
     ],
-    "extensions": ["episode", "chat", "checkpoint", "apps"]
+    "modules": ["episode", "chat", "checkpoint", "apps"]
   },
   "launchRequirements": {
     "minPlayers": 1
@@ -214,24 +214,24 @@ Manifest 规则：
 支持 Episode 的 App 规则：
 
 - 不得声明顶层 `protocolVersion`；catalog 从 `runtime.protocolVersion` 派生兼容字段。
-- `episode` extension 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；是否使用其中的 `experience.config` 由 App 自己决定。
+- `episode` module 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；是否使用其中的 `experience.config` 由 App 自己决定。
 - App manifest 不内嵌角色副本。当前角色、内容卡和 persona 来自 Host init 中实际授权的 context/input。
 - 所有 App 都同步到 `frontend/public/apps/<id>`，manifest 不再声明 `kind`。
-- `chatLaunchable` 省略或设为 `false`，表示该 App 只从明确的 Episode 或其他产品入口启动。
+- 不声明 `selection.promptHint`，表示该 App 只从明确的 Episode 或其他产品入口启动。
 
-### 4.1 已知扩展与 Host capability profile
+### 4.1 已知 module 与 Host capability profile
 
-App SDK 只维护语言无关的已知扩展注册表，不定义 App 类型分类：
+App SDK 只维护语言无关的已知 module 注册表，不定义 App 类型分类：
 
 ```js
-import { RUNTIME_EXTENSIONS } from "@dokiworld/app-sdk/runtime-extensions";
+import { RUNTIME_MODULES } from "@dokiworld/app-sdk/runtime-modules";
 ```
 
-当前已知扩展为：`apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage`、`world`。
+当前已知 module 为：`apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage`、`world`。
 
-清单生成器和浏览器 catalog 加载器会拒绝未知扩展。真正启动 App 时，当前 Host 会把 manifest 声明与自己的 capability profile 比较；缺少任一能力就拒绝启动，并且不会把未实现能力暴露给 iframe。
+清单生成器和浏览器 catalog 加载器会拒绝未知 module。真正启动 App 时，当前 Host 会把 manifest 声明与自己的 capability profile 比较；缺少任一能力就拒绝启动，并且不会把未实现能力暴露给 iframe。
 
-| 当前 Host profile | 当前提供的 `runtime.extensions` |
+| 当前 Host profile | 当前提供的 `runtime.modules` |
 | --- | --- |
 | 对话内 App Host | `apps`、`character`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
 | 独立页面 App Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
@@ -243,7 +243,7 @@ import { RUNTIME_EXTENSIONS } from "@dokiworld/app-sdk/runtime-extensions";
 
 - `episode` 对应 Episode 选择、回复、动作和 App 结果等 `dokiworld-app-episode-*` 消息；
 - `chat` 对应 Episode 兼容层中的重新生成、建议与媒体等 `dokiworld-app-chat-*` 消息；
-- `world` 是保留的协议扩展名，对应独立页面控制消息，例如 `dokiworld-app-world-error`；
+- `world` 是保留的协议 module 名，对应独立页面控制消息，例如 `dokiworld-app-world-error`；
 - `checkpoint` 保存当前 App 会话的可恢复状态；
 - `memory` 读取当前人物卡与已登录用户之间的长期记忆，`footprint` 读取同一关系下的互动足迹；两者都需要同名 context scope；
 - `memory.list()` 与 `footprint.list()` 由 Host 固定当前人物卡，App 不传 `characterId`，返回值不包含账号 ID 或来源会话 ID；
@@ -278,8 +278,8 @@ await writeFile("src/manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
 - 英文与简体中文字段完整；
 - runtime input/output contract 与版本完整；
 - 返回 `doki.game.result/1` 的 App，其 `result.metrics` 名称唯一、与实际结算结果一致，并且最多 12 项；
-- `chatLaunchable: true` 的 App 有双语 `selection.promptHint`；其他 App 不声明 `selection`；
-- 声明的 extension 与业务代码实际创建的 SDK extension 一致。
+- 需要由对话选择的 App 有有效的双语 `selection.promptHint`；其他 App 不声明该字段；
+- 声明的 module 与业务代码实际创建的 SDK adapter 一致。
 
 ## 6. `dokiworld.app/2` 生命周期
 
@@ -290,7 +290,7 @@ import { createAppClient } from "@dokiworld/app-sdk";
 
 const app = createAppClient({
   appId: "my-app",
-  extensions: ["progress", "checkpoint"],
+  modules: ["progress", "checkpoint"],
 });
 
 app.connect({
@@ -318,10 +318,10 @@ App 不读取 DokiWorld token、Cookie 或内部 HTTP 接口。认证、API key�
 
 每项能力需要同时完成：
 
-1. 在 manifest 的 `runtime.extensions` 声明名称；
-2. 在 `createAppClient({ extensions })` 声明名称；
-3. 创建对应 Client extension；
-4. 确认 Host 为本次 App 注册了相应 Host extension；
+1. 在 manifest 的 `runtime.modules` 声明名称；
+2. 在 `createAppClient({ modules })` 声明名称；
+3. 创建对应 Client adapter；
+4. 确认 Host 为本次 App 注册了相应 Host adapter；
 5. 在结束或卸载时释放 subscription、listener、timer 和嵌套 Host。
 
 常用模块：
@@ -339,9 +339,9 @@ App 不读取 DokiWorld token、Cookie 或内部 HTTP 接口。认证、API key�
 | `@dokiworld/app-sdk/apps` | 查询并启动嵌套 v2 App |
 | `@dokiworld/app-sdk/episode` | Episode 语义事件与 App 结果路由 |
 | `@dokiworld/app-sdk/game-result` | `doki.game.result/1` 创建、解析和校验 |
-| `@dokiworld/app-sdk/runtime-extensions` | 已知扩展名常量 `RUNTIME_EXTENSIONS` 与 `RuntimeExtension` 联合类型 |
+| `@dokiworld/app-sdk/runtime-modules` | 已知 module 常量 `RUNTIME_MODULES` 与 `RuntimeModule` 联合类型 |
 
-未声明的扩展消息会被拒绝；Host 没有实现的 operation 返回稳定的 `unsupported-operation`。各 capability 的完整接口见 [`packages/app-sdk/README.zh-CN.md`](../packages/app-sdk/README.zh-CN.md)。
+未声明的 module 消息会被拒绝；Host 没有实现的 operation 返回稳定的 `unsupported-operation`。各 capability 的完整接口见 [`packages/app-sdk/README.zh-CN.md`](../packages/app-sdk/README.zh-CN.md)。
 
 ## 8. App 结算与中途退出
 
@@ -375,13 +375,13 @@ onPrepareExit: () => ({
 
 ## 9. Episode 运行模型
 
-Episode extension 把 wire message 隐藏在 SDK 内。App 和 Host 只处理经过方向、类型及 payload 校验的语义事件，业务代码不维护 `dokiworld-app-episode-*` 字符串，也不自行解析任意 `message`。
+Episode module 把 wire message 隐藏在 SDK 内。App 和 Host 只处理经过方向、类型及 payload 校验的语义事件，业务代码不维护 `dokiworld-app-episode-*` 字符串，也不自行解析任意 `message`。
 
 ```mermaid
 sequenceDiagram
     participant Card as Content card
     participant Host as DokiWorld Host
-    participant EC as Episode Client extension
+    participant EC as Episode Client adapter
     participant App as Episode App
     participant Nested as Nested App
 
@@ -399,7 +399,7 @@ sequenceDiagram
 
 参考实现位于 [dokiworld-apps](https://github.com/raptoravis/dokiworld-apps)：`storyteller` 展示通用 Episode 播放流程，`banquet-contract` 展示专用场景逻辑，`game-match3` 展示通过 `doki.game.result/1` 返回的嵌套 App。
 
-### 9.1 初始化与 extension
+### 9.1 初始化与 module
 
 Host 在 init input 中按当前授权提供运行数据：
 
@@ -423,7 +423,7 @@ Host 在 init input 中按当前授权提供运行数据：
 - Character、内容卡和 persona 来自本次 Host context，不复制到 manifest。
 - input 必须是合法 JSON 值，不能包含 `undefined`、函数或循环引用。
 
-App 使用 Episode Client extension：
+App 使用 Episode Client adapter：
 
 ```js
 import { createAppClient } from "@dokiworld/app-sdk";
@@ -431,7 +431,7 @@ import { createEpisodeClientExtension } from "@dokiworld/app-sdk/episode";
 
 const app = createAppClient({
   appId: "storyteller",
-  extensions: ["episode", "apps", "checkpoint"],
+  modules: ["episode", "apps", "checkpoint"],
 });
 const episode = createEpisodeClientExtension(app);
 
@@ -588,7 +588,7 @@ Host 需要生成后续剧情时返回 `episode.gameResolved`；本地可确定�
 
 - 双向事件方向与 payload 校验；
 - 业务源码不手写 wire message；
-- manifest、Client 和 Host 的 extension 声明一致；
+- manifest、Client 和 Host 的 module 声明一致；
 - 静态路径与 Host/LLM 路径的分流；
 - App completed、cancelled、exited 和不同结果 route；
 - 重复 completion 不导致重复剧情或持久化；
@@ -659,9 +659,9 @@ App 版本、manifest schema、runtime protocol 和业务 contract version 是�
 
 - [ ] ID 在目录、manifest 和 `createAppClient({ appId })` 中一致。
 - [ ] manifest 与 package 版本一致，`dist/manifest.json` 由构建生成。
-- [ ] 只有需要对话拉起时才显式设置 `chatLaunchable: true`，并提供双语 `selection.promptHint`；省略时确认默认的 `false` 符合预期。
+- [ ] 只有需要对话拉起时才提供有效的双语 `selection.promptHint`；其他 App 不声明该字段。
 - [ ] App 不包含角色资料副本，并只声明实际使用的 context scopes。
-- [ ] manifest extension、Client extension 和真实业务调用一致；目标 Host profile 提供全部声明能力。
+- [ ] manifest module、Client module 和真实业务调用一致；目标 Host profile 提供全部声明能力。
 - [ ] required/optional scope 缺失场景有测试和降级行为。
 - [ ] completion、重复 ack、退出、中途得分和 cleanup 有测试。
 - [ ] 英文与简体中文名称、描述、提示和 UI 文案一致维护。

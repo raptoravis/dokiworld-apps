@@ -9,7 +9,6 @@ test("Banquet Contract uses the unified non-chat App manifest shape", async () =
   assert.equal(manifest.protocolVersion, undefined);
   assert.equal(manifest.runtime.protocol, "dokiworld.app");
   assert.equal(manifest.runtime.protocolVersion, 2);
-  assert.equal(manifest.chatLaunchable, false);
   assert.equal(Object.hasOwn(manifest, "kind"), false);
   assert.deepEqual(manifest.context, { requiredScopes: [], optionalScopes: [] });
 });

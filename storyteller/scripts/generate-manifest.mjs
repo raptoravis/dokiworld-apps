@@ -22,7 +22,6 @@ const manifest = {
   schemaVersion: 2,
   version: packageJson.version,
   id: "storyteller",
-  chatLaunchable: false,
   status: "active",
   entry: "index.html",
   runtime: {
@@ -30,7 +29,7 @@ const manifest = {
     protocolVersion: 2,
     input: { contract: "doki.world.storyteller-input", version: 1 },
     outputs: [{ contract: "doki.world.session-result", version: 1 }],
-    extensions: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
+    modules: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
   },
   launchRequirements: { minPlayers: 1 },
   context: {
@@ -60,7 +59,6 @@ function validate(target, src = srcDir) {
   }
   if (target.schemaVersion !== 2) errors.push("schemaVersion 必须为 2");
   if (!SEMVER_PATTERN.test(target.version)) errors.push("version 必须来自 package.json 且符合 semver");
-  if (target.chatLaunchable !== false) errors.push("chatLaunchable 必须为 false");
   if (target.protocolVersion !== undefined) errors.push("schemaVersion 2 不得声明顶层 protocolVersion");
   if (target.runtime?.protocol !== "dokiworld.app" || target.runtime?.protocolVersion !== 2) {
     errors.push("runtime 必须使用 dokiworld.app v2");

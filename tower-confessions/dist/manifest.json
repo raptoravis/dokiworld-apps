@@ -2,7 +2,6 @@
   "schemaVersion": 2,
   "version": "0.2.2",
   "id": "tower-confessions",
-  "chatLaunchable": true,
   "status": "active",
   "capability": "game.social.truth-dare-tower",
   "entry": "index.html",
@@ -46,7 +45,7 @@
       "version": 1
     },
     "outputs": [{ "contract": "doki.game.result", "version": 1 }],
-    "extensions": [
+    "modules": [
       "character",
       "dialogue",
       "persona",

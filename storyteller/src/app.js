@@ -242,7 +242,7 @@ const elements = {
 
 const dokiworld = createAppClient({
   appId: WORLD_ID,
-  extensions: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
+  modules: ["world", "episode", "chat", "dialogue", "media", "speech", "storage", "character", "persona", "apps", "checkpoint"],
 });
 const episode = createEpisodeClientExtension(dokiworld);
 const dialogue = createDialogueClientExtension(dokiworld, {

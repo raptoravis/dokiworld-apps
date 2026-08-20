@@ -2,7 +2,6 @@
   "schemaVersion": 2,
   "version": "1.0.8",
   "id": "banquet-contract",
-  "chatLaunchable": false,
   "status": "active",
   "entry": "index.html",
   "cover": "ui/adrian-portrait.png",
@@ -19,7 +18,7 @@
         "version": 1
       }
     ],
-    "extensions": [
+    "modules": [
       "world",
       "episode",
       "checkpoint"

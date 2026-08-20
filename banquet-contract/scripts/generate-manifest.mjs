@@ -32,7 +32,6 @@ export async function generateManifest(output = manifestPath) {
     throw new Error("App manifest context scopes must use the schemaVersion 2 shape");
   }
   manifest.version = packageJson.version;
-  manifest.chatLaunchable = false;
   await writeFile(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return output;
 }

@@ -86,7 +86,7 @@ SDK 负责请求 ID、并发响应关联、运行时校验、超时和稳定错�
 
 Storyteller `1.1.11` 已在 manifest 中声明并在 `src/app.js` 中实际使用以下能力：
 
-| 扩展名 | SDK 入口 | Storyteller 中的用途 |
+| module | SDK 入口 | Storyteller 中的用途 |
 |---|---|---|
 | `media` | `@dokiworld/app-sdk/media` | `generateImage()`、`generateVideo()` 和 `getJob()`；替代旧的 `chat.generateMedia` 业务消息 |
 | `speech` | `@dokiworld/app-sdk/speech` | `synthesize()`；替代直接调用浏览器 `speechSynthesis` |
@@ -97,10 +97,10 @@ Storyteller `1.1.11` 已在 manifest 中声明并在 `src/app.js` 中实际使�
 
 每项 capability 必须同时满足：
 
-1. App 在 manifest 的 `runtime.extensions` 中声明扩展名。
-2. `createAppClient({ extensions })` 声明同一扩展名。
-3. App 创建对应的 client extension 并实际调用其语义方法。
-4. DokiWorld Host 为该运行创建对应的 host extension。
+1. App 在 manifest 的 `runtime.modules` 中声明 module 名。
+2. `createAppClient({ modules })` 声明同一 module 名。
+3. App 创建对应的 client adapter 并实际调用其语义方法。
+4. DokiWorld Host 为该运行创建对应的 host adapter。
 
 只修改 manifest 不会自动获得能力。未声明的消息会被 SDK 拒绝；Host 未实现的操作会返回稳定的 `unsupported-operation` 错误。
 
@@ -124,19 +124,19 @@ Storyteller `1.1.11` 已在 manifest 中声明并在 `src/app.js` 中实际使�
 }
 ```
 
-`runtime.input` 和 `runtime.outputs` 是版本化 contract；`runtime.extensions` 只声明 App 确实消费的可选能力。
+`runtime.input` 和 `runtime.outputs` 是版本化 contract；`runtime.modules` 只声明 App 确实消费的可选能力。
 
-App SDK 维护统一的已知扩展注册表；manifest 不再声明 `kind`。`chatLaunchable` 只表示 App 是否可以由对话拉起，不决定 extension 是否合法。Catalog 只拒绝未知扩展，真正启动时由当前 Host capability profile 判断是否兼容：
+App SDK 维护统一的已知 module 注册表；manifest 不再声明 `kind`。是否进入对话候选由有效的双语 `selection.promptHint` 决定，不影响 module 是否合法。Catalog 只拒绝未知 module，真正启动时由当前 Host capability profile 判断是否兼容：
 
-| 当前 Host profile | 当前提供的 `runtime.extensions` |
+| 当前 Host profile | 当前提供的 `runtime.modules` |
 |---|---|
 | Chat Game Host | `character`、`checkpoint`、`dialogue`、`footprint`、`media`、`memory`、`persona`、`progress`、`resize`、`resume`、`speech`、`storage` |
 | World Page Host | `apps`、`character`、`chat`、`checkpoint`、`dialogue`、`episode`、`footprint`、`media`、`memory`、`persona`、`speech`、`storage`、`world` |
 | World Nested App Host | `checkpoint`、`progress`、`resize` |
 
-`episode` extension 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；App 可以按自身实现使用或忽略 `experience.config`。使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
+`episode` module 表示 Host 应启用 Episode 协议并在可用时提供内容卡的 `experience`；App 可以按自身实现使用或忽略 `experience.config`。使用 Episode 兼容 chat 消息时还须声明 `chat`。例如 `apps` 目前只能在 World Page Host 启动，但这属于当前 Host 实现。World Page Host 的 `apps.list()` 只返回与 World Nested App Host 兼容的 App，`apps.launch()` 也会再次校验。
 
-`memory` 和 `footprint` 分别读取当前人物卡的长期记忆与互动足迹。App 必须同时声明同名 runtime extension 和 context scope；Host 会把读取固定到当前人物卡与已登录用户，App 不传 `characterId`，也不会收到账号 ID 或来源会话 ID。
+`memory` 和 `footprint` 分别读取当前人物卡的长期记忆与互动足迹。App 必须同时声明同名 runtime module 和 context scope；Host 会把读取固定到当前人物卡与已登录用户，App 不传 `characterId`，也不会收到账号 ID 或来源会话 ID。
 
 Storyteller 和 Banquet Contract 仍保留必要的旧版嵌套 Game 兼容桥，但新的 v2 App 启动应优先使用 SDK 生命周期或 `apps.launch()`。Storyteller 的 `apps` capability 只列出能够通过统一 v2 生命周期安全启动的 App。
 
@@ -172,7 +172,7 @@ dokiworld-apps.git/
 
 ### 2. 定义 App contract
 
-所有 App 都使用 `dokiworld.app/2` 和统一 manifest。manifest 不声明 `kind`，只通过 `chatLaunchable` 表明是否可以由对话拉起。input/output contract、最小玩家数和 extensions 由 App 自身能力决定，不构成 Game/World 分类。
+所有 App 都使用 `dokiworld.app/2` 和统一 manifest。manifest 不声明 `kind`；有效的双语 `selection.promptHint` 使 App 进入对话候选。input/output contract、最小玩家数和 modules 由 App 自身能力决定，不构成 Game/World 分类。
 
 App 的 manifest 和 `runtime` 至少应声明：
 
@@ -180,7 +180,6 @@ App 的 manifest 和 `runtime` 至少应声明：
 {
   "schemaVersion": 2,
   "id": "my-new-app",
-  "chatLaunchable": true,
   "runtime": {
     "protocol": "dokiworld.app",
     "protocolVersion": 2,
@@ -194,7 +193,7 @@ App 的 manifest 和 `runtime` 至少应声明：
         "version": 1
       }
     ],
-    "extensions": ["progress", "checkpoint"]
+    "modules": ["progress", "checkpoint"]
   }
 }
 ```
@@ -209,12 +208,12 @@ App 入口应通过 `createAppClient` 完成 ready/init/initialized、运行消�
 
 每个可选 capability 都必须完成四处接线：
 
-1. 在 manifest 的 `runtime.extensions` 中声明；
-2. 在 `createAppClient({ extensions })` 中声明；
-3. 创建对应的 SDK client extension，并调用其公开方法；
-4. 确认 DokiWorld Host 已注册对应的 host extension。
+1. 在 manifest 的 `runtime.modules` 中声明；
+2. 在 `createAppClient({ modules })` 中声明；
+3. 创建对应的 SDK client adapter，并调用其公开方法；
+4. 确认 DokiWorld Host 已注册对应的 host adapter。
 
-只改 manifest 不会让 capability 生效。listener、extension subscription、timer 和嵌套 App Host 都应在结束或卸载时释放。
+只改 manifest 不会让 capability 生效。listener、module subscription、timer 和嵌套 App Host 都应在结束或卸载时释放。
 
 App 应提交符合自身 output contract 的结构化结果。如果 App 内会启动其他 App，优先使用 `apps.launch()`，只有需要兼容旧 App 时才保留 `createAppHost` 桥。
 
@@ -229,9 +228,8 @@ manifest 至少提供 `locales.en` 和 `locales.zh-cn` 的 `name`、`description
 新的 schema v2 App 不需要额外的平台注册文件。manifest 自身应完整声明：
 
 - `status`，值为 `active`、`deprecated` 或 `disabled`；
-- `chatLaunchable`，明确是否允许对话拉起；
 - 实际使用的 required/optional context scopes；
-- `selection`，其中双语 `promptHint` 必填；
+- 需要由对话选择时声明 `selection`，其中双语 `promptHint` 必填且必须非空；
 - 如果输出 `doki.game.result/1`，通过 `result.metrics` 声明运行时可能返回的指标名称，使 Episode 编辑器能针对所选 Game 列出对应的 `{{app.metrics.*}}` 变量。
 
 `selection` 还可包含 `avoidHint`、`activationPolicy`、tags、intents 和 examples。context scope 必须属于 Host 支持的公开 scope，否则 App catalog 生成会失败。不能由对话拉起的 App 不需要声明 `selection`。
@@ -249,7 +247,7 @@ npm run build
 
 测试至少应覆盖：
 
-- manifest ID、`chatLaunchable`、版本、runtime contract 和 extension 声明；
+- manifest ID、版本、runtime contract、module 声明和双语 `selection.promptHint` 有效性；
 - SDK 初始化、输入校验、completion acknowledgement 和退出 cleanup；
 - 每项声明 capability 的真实 SDK 调用，而不只是 manifest 字符串；
 - required/optional scope 缺失时的降级行为；
@@ -273,7 +271,7 @@ npm run sync:local-apps
 最后至少检查：
 
 - App 出现在统一 Apps catalog，并能从真实 Host 流程启动和返回结果；
-- `chatLaunchable` 为 `true` 的 App 可以由对话拉起，为 `false` 的 App 不会由对话拉起；
+- 有效双语 `selection.promptHint` 的 App 可以由对话拉起，未声明该字段的 App 不会进入候选；
 - Developer Mode 加载的是本地同步产物，而不是远程 CDN 版本；
 - 浏览器控制台没有 origin、protocol、contract、scope 或 capability 错误；
 - 英文与简体中文入口都能完成一次完整运行和退出。

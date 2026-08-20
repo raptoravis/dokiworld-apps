@@ -1,6 +1,6 @@
 # DokiWorld Storyteller
 
-A static, non-chat-launchable App that renders DokiWorld interactive episodes. Its deployable bundle has no runtime npm dependency because the App SDK is bundled during the build.
+A static App launched from explicit product entry points that renders DokiWorld interactive episodes. Its deployable bundle has no runtime npm dependency because the App SDK is bundled during the build.
 
 It supports:
 

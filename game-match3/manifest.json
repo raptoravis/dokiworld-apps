@@ -2,7 +2,6 @@
   "schemaVersion": 2,
   "version": "1.0.7",
   "id": "game-match3",
-  "chatLaunchable": true,
   "status": "active",
   "capability": "game.puzzle.match-three",
   "entry": "index.html",
@@ -65,7 +64,7 @@
         "version": 1
       }
     ],
-    "extensions": [
+    "modules": [
       "resize",
       "progress",
       "checkpoint"

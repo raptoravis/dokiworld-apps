@@ -65,7 +65,7 @@ test("Storyteller declares DokiWorld P0 and P1 capabilities", async () => {
     readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   ]);
   for (const capability of ["media", "speech", "storage", "character", "persona", "apps"]) {
-    assert.ok(manifest.runtime.extensions.includes(capability), `missing ${capability}`);
+    assert.ok(manifest.runtime.modules.includes(capability), `missing ${capability}`);
     assert.match(source, new RegExp(`@dokiworld/app-sdk/${capability}`), `missing ${capability} SDK import`);
     assert.match(source, new RegExp(`const ${capability} = create[A-Z][A-Za-z]+ClientExtension\\(dokiworld(?:,\\s*\\{[^}]*\\})?\\)`), `missing ${capability} adapter`);
   }
@@ -113,7 +113,6 @@ test("deployable assets and manifest are versioned together", async () => {
     readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
   ]);
   assert.equal(manifest.version, packageJson.version);
-  assert.equal(manifest.chatLaunchable, false);
   assert.equal(Object.hasOwn(manifest, "kind"), false);
   assert.match(html, new RegExp(`\\./styles\\.css\\?v=${packageJson.version.replaceAll(".", "\\.")}`));
   assert.match(html, new RegExp(`\\./app\\.js\\?v=${packageJson.version.replaceAll(".", "\\.")}`));

@@ -197,17 +197,17 @@ function postToParent(scope, message, targetOrigin) {
   }
   scope.parent.postMessage(message, targetOrigin);
 }
-function createExtensionSet(extensions) {
-  if (!Array.isArray(extensions) || !extensions.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
-    throw new Error("Invalid app extensions");
+function createModuleSet(modules) {
+  if (!Array.isArray(modules) || !modules.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
+    throw new Error("Invalid app modules");
   }
-  return new Set(extensions);
+  return new Set(modules);
 }
-function isDeclaredExtensionMessage(type, extensions) {
+function isDeclaredModuleMessage(type, modules) {
   if (typeof type !== "string" || !type.startsWith("dokiworld-app-")) return false;
   const suffix = type.slice("dokiworld-app-".length);
-  for (const extension of extensions) {
-    if (suffix === extension || suffix.startsWith(`${extension}-`)) return true;
+  for (const module of modules) {
+    if (suffix === module || suffix.startsWith(`${module}-`)) return true;
   }
   return false;
 }
@@ -271,7 +271,7 @@ function createAppClient({
   targetOrigin = "*",
   instanceId = defaultId("instance"),
   createId = defaultId,
-  extensions = [],
+  modules = [],
   readyRetryMs = 500,
   acknowledgementTimeoutMs = 3e3,
   acknowledgementAttempts = 3
@@ -279,7 +279,7 @@ function createAppClient({
   if (!isBoundedId(appId) || !isBoundedId(instanceId)) throw new Error("Invalid app client identity");
   if (!Number.isInteger(acknowledgementAttempts) || acknowledgementAttempts < 1) throw new Error("Invalid acknowledgement attempt count");
   if (!Number.isFinite(readyRetryMs) || readyRetryMs <= 0 || !Number.isFinite(acknowledgementTimeoutMs) || acknowledgementTimeoutMs <= 0) throw new Error("Invalid app client retry timing");
-  const extensionTypes = createExtensionSet(extensions);
+  const moduleTypes = createModuleSet(modules);
   let runId = null;
   let connected = false;
   let disposed = false;
@@ -380,7 +380,7 @@ function createAppClient({
       await handlers.onExitDecision?.(message.payload.decision);
       return;
     }
-    if (isDeclaredExtensionMessage(message.type, extensionTypes)) {
+    if (isDeclaredModuleMessage(message.type, moduleTypes)) {
       for (const listener of messageListeners) await listener(message);
       await handlers.onMessage?.(message);
     }
@@ -433,7 +433,7 @@ function createAppClient({
       return sendSession("dokiworld-app-request-exit", { reason });
     },
     send(type, payload = {}) {
-      if (!isDeclaredExtensionMessage(type, extensionTypes) || RESERVED_CLIENT_MESSAGE_TYPES.has(type) || RESERVED_HOST_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared app extension message type");
+      if (!isDeclaredModuleMessage(type, moduleTypes) || RESERVED_CLIENT_MESSAGE_TYPES.has(type) || RESERVED_HOST_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared app module message type");
       return sendSession(type, payload);
     },
     onMessage(listener) {
@@ -632,7 +632,7 @@ var elements = {
 };
 var dokiworld = createAppClient({
   appId: GAME_ID,
-  extensions: ["resize", "progress", "checkpoint"]
+  modules: ["resize", "progress", "checkpoint"]
 });
 var locale = "en";
 var copy = COPY.en;

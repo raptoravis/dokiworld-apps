@@ -28,7 +28,7 @@ const APP_ID = "tower-confessions";
 const CHECKPOINT = "doki.game.tower-confessions-state";
 const app = createAppClient({
   appId: APP_ID,
-  extensions: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
+  modules: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
 });
 const characterApi = createCharacterClientExtension(app);
 const dialogue = createDialogueClientExtension(app, { timeoutMs: 90_000 });

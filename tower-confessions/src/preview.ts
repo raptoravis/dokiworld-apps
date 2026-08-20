@@ -13,7 +13,7 @@ frame.addEventListener("load", () => {
     target: frame.contentWindow!,
     targetOrigin: window.location.origin,
     expectedOrigin: window.location.origin,
-    extensions: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
+    modules: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
     init: {
       locale: new URLSearchParams(window.location.search).get("locale") === "zh-cn" ? "zh-cn" : "en",
       grantedScopes: ["character.identity", "character.avatar", "character.card", "player_persona"],

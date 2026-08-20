@@ -122,7 +122,7 @@ const elements = {
 
 const dokiworld = createAppClient({
   appId: GAME_ID,
-  extensions: ["resize", "progress", "checkpoint"],
+  modules: ["resize", "progress", "checkpoint"],
 });
 let locale = "en";
 let copy = COPY.en;

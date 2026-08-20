@@ -324,7 +324,7 @@ let locale = "en";
 let copy = COPY.en;
 const dokiworld = createAppClient({
   appId: WORLD_ID,
-  extensions: ["world", "episode", "checkpoint"],
+  modules: ["world", "episode", "checkpoint"],
 });
 const episode = createEpisodeClientExtension(dokiworld);
 let phase = "cover";
@@ -1460,7 +1460,7 @@ function connectGameHost() {
     target,
     targetOrigin: "*",
     expectedOrigin: "null",
-    extensions: ["resize", "progress", "checkpoint"],
+    modules: ["resize", "progress", "checkpoint"],
     init: {
       locale,
       grantedScopes: [],

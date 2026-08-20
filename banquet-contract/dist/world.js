@@ -70,17 +70,17 @@ function isSecureHostOriginPair(targetOrigin, expectedOrigin) {
   if (expectedOrigin === "null") return targetOrigin === "*";
   return isWebOrigin(expectedOrigin) && targetOrigin === expectedOrigin;
 }
-function createExtensionSet(extensions) {
-  if (!Array.isArray(extensions) || !extensions.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
-    throw new Error("Invalid app extensions");
+function createModuleSet(modules) {
+  if (!Array.isArray(modules) || !modules.every((value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value))) {
+    throw new Error("Invalid app modules");
   }
-  return new Set(extensions);
+  return new Set(modules);
 }
-function isDeclaredExtensionMessage(type, extensions) {
+function isDeclaredModuleMessage(type, modules) {
   if (typeof type !== "string" || !type.startsWith("dokiworld-app-")) return false;
   const suffix = type.slice("dokiworld-app-".length);
-  for (const extension of extensions) {
-    if (suffix === extension || suffix.startsWith(`${extension}-`)) return true;
+  for (const module of modules) {
+    if (suffix === module || suffix.startsWith(`${module}-`)) return true;
   }
   return false;
 }
@@ -187,7 +187,7 @@ function createAppClient({
   targetOrigin = "*",
   instanceId = defaultId("instance"),
   createId = defaultId,
-  extensions = [],
+  modules = [],
   readyRetryMs = 500,
   acknowledgementTimeoutMs = 3e3,
   acknowledgementAttempts = 3
@@ -195,7 +195,7 @@ function createAppClient({
   if (!isBoundedId(appId) || !isBoundedId(instanceId)) throw new Error("Invalid app client identity");
   if (!Number.isInteger(acknowledgementAttempts) || acknowledgementAttempts < 1) throw new Error("Invalid acknowledgement attempt count");
   if (!Number.isFinite(readyRetryMs) || readyRetryMs <= 0 || !Number.isFinite(acknowledgementTimeoutMs) || acknowledgementTimeoutMs <= 0) throw new Error("Invalid app client retry timing");
-  const extensionTypes = createExtensionSet(extensions);
+  const moduleTypes = createModuleSet(modules);
   let runId = null;
   let connected = false;
   let disposed = false;
@@ -296,7 +296,7 @@ function createAppClient({
       await handlers.onExitDecision?.(message.payload.decision);
       return;
     }
-    if (isDeclaredExtensionMessage(message.type, extensionTypes)) {
+    if (isDeclaredModuleMessage(message.type, moduleTypes)) {
       for (const listener of messageListeners) await listener(message);
       await handlers.onMessage?.(message);
     }
@@ -349,7 +349,7 @@ function createAppClient({
       return sendSession("dokiworld-app-request-exit", { reason });
     },
     send(type, payload = {}) {
-      if (!isDeclaredExtensionMessage(type, extensionTypes) || RESERVED_CLIENT_MESSAGE_TYPES.has(type) || RESERVED_HOST_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared app extension message type");
+      if (!isDeclaredModuleMessage(type, moduleTypes) || RESERVED_CLIENT_MESSAGE_TYPES.has(type) || RESERVED_HOST_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared app module message type");
       return sendSession(type, payload);
     },
     onMessage(listener) {
@@ -370,7 +370,7 @@ function createAppHost({
   targetOrigin,
   expectedOrigin,
   createId = defaultId,
-  extensions = [],
+  modules = [],
   initRetryMs = 500,
   exitStateTimeoutMs = 3e3
 } = {}) {
@@ -380,7 +380,7 @@ function createAppHost({
   }
   if (!isRecord(init) || typeof init.locale !== "string" || !Array.isArray(init.grantedScopes) || !init.grantedScopes.every((value) => typeof value === "string") || !isRecord(init.context) || !isRecord(init.input) || !isContract(init.input) || !("data" in init.input) || !isBoundedJson(init.input.data) || !Array.isArray(outputs) || !outputs.every(isContract)) throw new Error("Invalid app host contract");
   if (!Number.isFinite(initRetryMs) || initRetryMs <= 0 || !Number.isFinite(exitStateTimeoutMs) || exitStateTimeoutMs <= 0) throw new Error("Invalid app host retry timing");
-  const extensionTypes = createExtensionSet(extensions);
+  const moduleTypes = createModuleSet(modules);
   let instanceId = null;
   let initMessage = null;
   let connected = false;
@@ -484,7 +484,7 @@ function createAppHost({
       }
       return;
     }
-    if (isDeclaredExtensionMessage(message.type, extensionTypes)) {
+    if (isDeclaredModuleMessage(message.type, moduleTypes)) {
       for (const listener of messageListeners) await listener(message);
       await handlers.onMessage?.(message);
     }
@@ -538,7 +538,7 @@ function createAppHost({
       return sendSession("dokiworld-app-exit-decision", { decision });
     },
     send(type, payload = {}) {
-      if (!isDeclaredExtensionMessage(type, extensionTypes) || RESERVED_HOST_MESSAGE_TYPES.has(type) || RESERVED_CLIENT_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared host extension message type");
+      if (!isDeclaredModuleMessage(type, moduleTypes) || RESERVED_HOST_MESSAGE_TYPES.has(type) || RESERVED_CLIENT_MESSAGE_TYPES.has(type)) throw new Error("Invalid or undeclared host module message type");
       return sendSession(type, payload);
     },
     onMessage(listener) {
@@ -1005,7 +1005,7 @@ var locale = "en";
 var copy = COPY.en;
 var dokiworld = createAppClient({
   appId: WORLD_ID,
-  extensions: ["world", "episode", "checkpoint"]
+  modules: ["world", "episode", "checkpoint"]
 });
 var episode = createEpisodeClientExtension(dokiworld);
 var phase = "cover";
@@ -1948,7 +1948,7 @@ function connectGameHost() {
     target,
     targetOrigin: "*",
     expectedOrigin: "null",
-    extensions: ["resize", "progress", "checkpoint"],
+    modules: ["resize", "progress", "checkpoint"],
     init: {
       locale,
       grantedScopes: [],
