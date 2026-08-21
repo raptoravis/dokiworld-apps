@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "id": "tower-confessions",
   "status": "active",
   "capability": "game.social.truth-dare-tower",
