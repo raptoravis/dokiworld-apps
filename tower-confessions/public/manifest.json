@@ -46,8 +46,12 @@
     },
     "outputs": [{ "contract": "doki.game.result", "version": 1 }],
     "modules": [
+      "apps",
       "character",
       "dialogue",
+      "footprint",
+      "media",
+      "memory",
       "persona",
       "progress",
       "resize",

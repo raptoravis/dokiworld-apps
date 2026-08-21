@@ -1,9 +1,4 @@
 import { createAppClient } from "@dokiworld/app-sdk";
-import { createCharacterClientExtension } from "@dokiworld/app-sdk/character";
-import { createDialogueClientExtension } from "@dokiworld/app-sdk/dialogue";
-import { createPersonaClientExtension } from "@dokiworld/app-sdk/persona";
-import { createSpeechClientExtension } from "@dokiworld/app-sdk/speech";
-import { createStorageClientExtension } from "@dokiworld/app-sdk/storage";
 import { createGameResult } from "@dokiworld/app-sdk/game-result";
 import {
   BLOCK_COUNT,
@@ -22,23 +17,19 @@ import {
   type Difficulty,
   type TowerState,
 } from "./gameState";
+import { createSdkDiagnostics, SDK_ENABLED_MODULES, type DiagnosticResult } from "./sdkDiagnostics";
 import "./style.css";
 
 const APP_ID = "tower-confessions";
 const CHECKPOINT = "doki.game.tower-confessions-state";
 const app = createAppClient({
   appId: APP_ID,
-  modules: ["character", "dialogue", "persona", "progress", "resize", "speech", "storage"],
+  modules: [...SDK_ENABLED_MODULES],
 });
-const characterApi = createCharacterClientExtension(app);
-const dialogue = createDialogueClientExtension(app, { timeoutMs: 90_000 });
-const personaApi = createPersonaClientExtension(app);
-const speech = createSpeechClientExtension(app);
-const storage = createStorageClientExtension(app);
 
 type Locale = "en" | "zh-cn";
 type Screen = "menu" | "game" | "thinking" | "result" | "celebration";
-type Overlay = "rules" | "settings" | null;
+type Overlay = "rules" | "settings" | "sdk" | null;
 type Challenge = { kind: ChallengeKind; text: string; owner: "player" | "character" };
 
 const COPY = {
@@ -51,6 +42,7 @@ const COPY = {
     rules: "How to play",
     sound: "Sound",
     settings: "Settings",
+    sdk: "SDK diagnostics",
     intensity: "Tonight's mood",
     sweet: "Soft",
     tipsy: "Tipsy",
@@ -122,6 +114,17 @@ const COPY = {
     rulesBody: "Pull a block from below the top two layers. A safe pull reveals a truth or dare. Answer it to raise the heart meter. If the tower falls, the person who touched it draws a forfeit card.",
     close: "Got it",
     settingsTitle: "Date settings",
+    sdkTitle: "App SDK modules & APIs",
+    sdkDescription: "Live checks against the current DokiWorld Host. Media, dialogue, speech, app launch, and persona selection tests may perform the named operation.",
+    sdkModules: "SDK modules",
+    sdkApis: "Client APIs",
+    sdkEnabled: "Enabled",
+    sdkNotEnabled: "Not enabled",
+    sdkNoApis: "No standalone client APIs in this SDK version.",
+    sdkTest: "Test",
+    sdkTesting: "Testing…",
+    sdkPassed: "Passed",
+    sdkFailed: "Failed",
     soundOn: "Sound on",
     soundOff: "Sound off",
     privacy: "Your typed answers are never stored in the game checkpoint.",
@@ -153,6 +156,7 @@ const COPY = {
     rules: "玩法说明",
     sound: "音效",
     settings: "设置",
+    sdk: "SDK 诊断",
     intensity: "今晚的尺度",
     sweet: "轻甜",
     tipsy: "微醺",
@@ -224,6 +228,17 @@ const COPY = {
     rulesBody: "从顶端两层以下抽取木条。安全抽出会翻开一道真心话或大冒险，完成后增加心动值。木塔倒下时，碰倒它的人需要抽取一张惩罚卡。",
     close: "知道了",
     settingsTitle: "约会设置",
+    sdkTitle: "App SDK 模块与 API",
+    sdkDescription: "针对当前 DokiWorld Host 执行实时检查。媒体、对话、语音、应用启动和玩家身份选择测试会实际执行对应操作。",
+    sdkModules: "SDK 模块",
+    sdkApis: "客户端 API",
+    sdkEnabled: "已启用",
+    sdkNotEnabled: "未启用",
+    sdkNoApis: "此 SDK 版本没有独立的客户端 API。",
+    sdkTest: "测试",
+    sdkTesting: "测试中…",
+    sdkPassed: "通过",
+    sdkFailed: "失败",
     soundOn: "音效已开启",
     soundOff: "音效已关闭",
     privacy: "你输入的私密回答不会写入游戏存档。",
@@ -253,6 +268,18 @@ type Copy = (typeof COPY)[Locale];
 let locale: Locale = "en";
 let copy: Copy = COPY.en;
 let character = { id: "", name: "Companion", avatarUrl: "" };
+const diagnostics = createSdkDiagnostics(app, {
+  appId: APP_ID,
+  characterId: () => character.id,
+  locale: () => locale,
+});
+const {
+  character: characterApi,
+  dialogue,
+  persona: personaApi,
+  speech,
+  storage,
+} = diagnostics;
 let playerName = "You";
 let state: TowerState = createTowerState();
 let screen: Screen = "menu";
@@ -268,6 +295,8 @@ let thinkingStartedAt = 0;
 let thinkingTimer = 0;
 let clockTimer = 0;
 let forfeitOffset = 0;
+let diagnosticRunning = "";
+const diagnosticResults: Record<string, DiagnosticResult> = {};
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const format = (value: string, variables: Record<string, string | number> = {}) => (
@@ -420,7 +449,7 @@ function challengeCard(): string {
 function renderMenu(): string {
   return `<main class="app-shell menu-screen">
     <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
-    <nav class="menu-tools"><button data-action="sound">${soundEnabled ? "♪" : "×"} ${copy.sound}</button><button data-action="settings">⚙ ${copy.settings}</button></nav>
+    <nav class="menu-tools"><button data-action="sound">${soundEnabled ? "♪" : "×"} ${copy.sound}</button><button data-action="sdk">⌘ ${copy.sdk}</button><button data-action="settings">⚙ ${copy.settings}</button></nav>
     <section class="menu-copy"><p class="brand">${copy.brand}</p><h1>${copy.title.split("\n").map((line) => `<span>${line}</span>`).join("")}</h1><p class="menu-subtitle">${copy.subtitle}</p>
       <div class="menu-actions"><button class="primary jumbo" data-action="start">${copy.start}</button><button class="soft jumbo" data-action="rules">${copy.rules}</button></div>
       <fieldset class="difficulty"><legend>${copy.intensity}</legend>${(["sweet", "tipsy", "heartbeat"] as Difficulty[]).map((difficulty) => `<button data-difficulty="${difficulty}" class="${state.difficulty === difficulty ? "is-selected" : ""}">${copy[difficulty]}</button>`).join("")}</fieldset>
@@ -490,11 +519,47 @@ function renderCelebration(): string {
   </main>`;
 }
 
+function diagnosticResultMarkup(id: string): string {
+  const result = diagnosticResults[id];
+  if (!result) return "";
+  const label = result.status === "passed" ? copy.sdkPassed : copy.sdkFailed;
+  return `<p class="sdk-result is-${result.status}" role="status"><strong>${label}</strong><span>${escapeHtml(result.detail)}</span><small>${result.durationMs} ms</small></p>`;
+}
+
+function diagnosticButton(id: string): string {
+  const running = diagnosticRunning === id;
+  return `<button class="sdk-test" type="button" data-diagnostic="${escapeHtml(id)}" ${diagnosticRunning ? "disabled" : ""}>${running ? copy.sdkTesting : copy.sdkTest}</button>`;
+}
+
+function sdkDiagnosticsMarkup(): string {
+  const apiCount = diagnostics.modules.reduce((count, module) => count + module.apis.length, 0);
+  return `<div class="sdk-summary"><span>${diagnostics.modules.length} ${copy.sdkModules}</span><span>${apiCount} ${copy.sdkApis}</span></div>
+    <div class="sdk-module-list">
+      ${diagnostics.modules.map((module) => {
+        const moduleId = `module:${module.name}`;
+        return `<article class="sdk-module ${module.enabled ? "is-enabled" : ""}">
+          <header><div><strong>${escapeHtml(module.name)}</strong><small>${module.enabled ? copy.sdkEnabled : copy.sdkNotEnabled}</small></div>${diagnosticButton(moduleId)}</header>
+          ${diagnosticResultMarkup(moduleId)}
+          ${module.apis.length
+            ? `<ul>${module.apis.map((api) => `<li><code>${escapeHtml(api.name)}()</code>${diagnosticButton(api.id)}${diagnosticResultMarkup(api.id)}</li>`).join("")}</ul>`
+            : `<p class="sdk-empty">${copy.sdkNoApis}</p>`}
+        </article>`;
+      }).join("")}
+    </div>`;
+}
+
 function overlayMarkup(): string {
   if (!overlay) return "";
-  return `<div class="modal-scrim"><section class="modal-card" role="dialog" aria-modal="true"><button class="modal-x" data-action="close-overlay">×</button>
-    <p class="brand">${overlay === "rules" ? copy.rules : copy.settings}</p><h2>${overlay === "rules" ? copy.rulesTitle : copy.settingsTitle}</h2>
-    ${overlay === "rules" ? `<p>${copy.rulesBody}</p><ol><li>${copy.choose}</li><li>${copy.currentQuestion}</li><li>${copy.penaltyHint}</li></ol>` : `<button class="setting-toggle ${soundEnabled ? "is-on" : ""}" data-action="sound"><i></i><span>${soundEnabled ? copy.soundOn : copy.soundOff}</span></button><p>${copy.privacy}</p>`}
+  const isSdk = overlay === "sdk";
+  const title = overlay === "rules" ? copy.rulesTitle : isSdk ? copy.sdkTitle : copy.settingsTitle;
+  const brand = overlay === "rules" ? copy.rules : isSdk ? copy.sdk : copy.settings;
+  return `<div class="modal-scrim"><section class="modal-card ${isSdk ? "sdk-diagnostics-card" : ""}" role="dialog" aria-modal="true"><button class="modal-x" data-action="close-overlay">×</button>
+    <p class="brand">${brand}</p><h2>${title}</h2>
+    ${overlay === "rules"
+      ? `<p>${copy.rulesBody}</p><ol><li>${copy.choose}</li><li>${copy.currentQuestion}</li><li>${copy.penaltyHint}</li></ol>`
+      : isSdk
+        ? `<p>${copy.sdkDescription}</p>${sdkDiagnosticsMarkup()}`
+        : `<button class="setting-toggle ${soundEnabled ? "is-on" : ""}" data-action="sound"><i></i><span>${soundEnabled ? copy.soundOn : copy.soundOff}</span></button><p>${copy.privacy}</p>`}
     <button class="primary modal-close" data-action="close-overlay">${copy.close}</button></section></div>`;
 }
 
@@ -515,9 +580,13 @@ function bindEvents(): void {
   root.querySelector("[data-action='start']")?.addEventListener("click", () => startGame(false));
   root.querySelector("[data-action='resume']")?.addEventListener("click", () => startGame(true));
   root.querySelector("[data-action='rules']")?.addEventListener("click", () => { overlay = "rules"; render(); });
+  root.querySelector("[data-action='sdk']")?.addEventListener("click", () => { overlay = "sdk"; render(); });
   root.querySelector("[data-action='settings']")?.addEventListener("click", () => { overlay = "settings"; render(); });
   root.querySelectorAll("[data-action='close-overlay']").forEach((button) => button.addEventListener("click", () => { overlay = null; render(); }));
   root.querySelectorAll("[data-action='sound']").forEach((button) => button.addEventListener("click", () => { soundEnabled = !soundEnabled; render(); }));
+  root.querySelectorAll<HTMLButtonElement>("[data-diagnostic]").forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.diagnostic) void runDiagnostic(button.dataset.diagnostic);
+  }));
   root.querySelector("[data-action='answer']")?.addEventListener("click", () => void answerChallenge());
   root.querySelector("[data-action='skip']")?.addEventListener("click", skipChallenge);
   root.querySelector("[data-action='continue']")?.addEventListener("click", continueRound);
@@ -528,6 +597,16 @@ function bindEvents(): void {
   root.querySelector("[data-action='replay']")?.addEventListener("click", replay);
   root.querySelector("[data-action='store']")?.addEventListener("click", () => void settle());
   bindTowerDrag();
+}
+
+async function runDiagnostic(id: string): Promise<void> {
+  if (diagnosticRunning) return;
+  diagnosticRunning = id;
+  render();
+  diagnosticResults[id] = await diagnostics.run(id);
+  diagnosticRunning = "";
+  render();
+  root.querySelector<HTMLElement>(`[data-diagnostic="${CSS.escape(id)}"]`)?.focus();
 }
 
 function bindTowerDrag(): void {
