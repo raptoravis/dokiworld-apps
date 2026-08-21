@@ -10,7 +10,7 @@ describe("SDK module declarations", () => {
     ) as { runtime: { modules: string[] } };
 
     expect(manifest.runtime.modules).toEqual([...SDK_ENABLED_MODULES]);
-    expect(SDK_ENABLED_MODULES).toContain("chat");
+    expect(SDK_ENABLED_MODULES).not.toContain("chat");
     expect(SDK_ENABLED_MODULES).toContain("checkpoint");
     expect(SDK_ENABLED_MODULES).toContain("resume");
   });
