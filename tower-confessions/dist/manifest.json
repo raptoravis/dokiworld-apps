@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "id": "tower-confessions",
   "status": "active",
   "capability": "game.social.truth-dare-tower",
@@ -48,6 +48,8 @@
     "modules": [
       "apps",
       "character",
+      "chat",
+      "checkpoint",
       "dialogue",
       "footprint",
       "media",
@@ -55,6 +57,7 @@
       "persona",
       "progress",
       "resize",
+      "resume",
       "speech",
       "storage"
     ]

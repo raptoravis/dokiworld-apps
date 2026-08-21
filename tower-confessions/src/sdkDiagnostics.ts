@@ -13,6 +13,8 @@ import { createStorageClientExtension } from "@dokiworld/app-sdk/storage";
 export const SDK_ENABLED_MODULES = [
   "apps",
   "character",
+  "chat",
+  "checkpoint",
   "dialogue",
   "footprint",
   "media",
@@ -20,6 +22,7 @@ export const SDK_ENABLED_MODULES = [
   "persona",
   "progress",
   "resize",
+  "resume",
   "speech",
   "storage",
 ] as const satisfies readonly RuntimeExtension[];
