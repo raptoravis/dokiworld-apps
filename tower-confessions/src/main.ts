@@ -123,6 +123,9 @@ const COPY = {
     sdkNoApis: "No standalone client APIs in this SDK version.",
     sdkTest: "Test",
     sdkTesting: "Testing…",
+    sdkTestAll: "Test all",
+    sdkTestingAll: "Testing {done}/{total}",
+    sdkBatchResult: "{passed}/{total} APIs passed",
     sdkPassed: "Passed",
     sdkFailed: "Failed",
     soundOn: "Sound on",
@@ -237,6 +240,9 @@ const COPY = {
     sdkNoApis: "此 SDK 版本没有独立的客户端 API。",
     sdkTest: "测试",
     sdkTesting: "测试中…",
+    sdkTestAll: "一键测试全部",
+    sdkTestingAll: "测试中 {done}/{total}",
+    sdkBatchResult: "{passed}/{total} 个 API 通过",
     sdkPassed: "通过",
     sdkFailed: "失败",
     soundOn: "音效已开启",
@@ -296,6 +302,7 @@ let thinkingTimer = 0;
 let clockTimer = 0;
 let forfeitOffset = 0;
 let diagnosticRunning = "";
+let diagnosticBatch: { done: number; total: number } | null = null;
 const diagnosticResults: Record<string, DiagnosticResult> = {};
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -528,12 +535,15 @@ function diagnosticResultMarkup(id: string): string {
 
 function diagnosticButton(id: string): string {
   const running = diagnosticRunning === id;
-  return `<button class="sdk-test" type="button" data-diagnostic="${escapeHtml(id)}" ${diagnosticRunning ? "disabled" : ""}>${running ? copy.sdkTesting : copy.sdkTest}</button>`;
+  return `<button class="sdk-test" type="button" data-diagnostic="${escapeHtml(id)}" ${diagnosticRunning || diagnosticBatch ? "disabled" : ""}>${running ? copy.sdkTesting : copy.sdkTest}</button>`;
 }
 
 function sdkDiagnosticsMarkup(): string {
   const apiCount = diagnostics.modules.reduce((count, module) => count + module.apis.length, 0);
-  return `<div class="sdk-summary"><span>${diagnostics.modules.length} ${copy.sdkModules}</span><span>${apiCount} ${copy.sdkApis}</span></div>
+  const batchLabel = diagnosticBatch
+    ? format(copy.sdkTestingAll, diagnosticBatch)
+    : copy.sdkTestAll;
+  return `<div class="sdk-summary"><div><span>${diagnostics.modules.length} ${copy.sdkModules}</span><span>${apiCount} ${copy.sdkApis}</span></div><button class="sdk-test-all" type="button" data-action="test-all-diagnostics" ${diagnosticBatch || diagnosticRunning ? "disabled" : ""}>${batchLabel}</button></div>
     <div class="sdk-module-list">
       ${diagnostics.modules.map((module) => {
         const moduleId = `module:${module.name}`;
@@ -587,6 +597,7 @@ function bindEvents(): void {
   root.querySelectorAll<HTMLButtonElement>("[data-diagnostic]").forEach((button) => button.addEventListener("click", () => {
     if (button.dataset.diagnostic) void runDiagnostic(button.dataset.diagnostic);
   }));
+  root.querySelector("[data-action='test-all-diagnostics']")?.addEventListener("click", () => void runAllDiagnostics());
   root.querySelector("[data-action='answer']")?.addEventListener("click", () => void answerChallenge());
   root.querySelector("[data-action='skip']")?.addEventListener("click", skipChallenge);
   root.querySelector("[data-action='continue']")?.addEventListener("click", continueRound);
@@ -600,13 +611,58 @@ function bindEvents(): void {
 }
 
 async function runDiagnostic(id: string): Promise<void> {
-  if (diagnosticRunning) return;
+  if (diagnosticRunning || diagnosticBatch) return;
   diagnosticRunning = id;
-  render();
+  renderPreservingDiagnosticsScroll();
   diagnosticResults[id] = await diagnostics.run(id);
   diagnosticRunning = "";
-  render();
+  renderPreservingDiagnosticsScroll();
   root.querySelector<HTMLElement>(`[data-diagnostic="${CSS.escape(id)}"]`)?.focus();
+}
+
+function renderPreservingDiagnosticsScroll(): void {
+  const scrollTop = root.querySelector<HTMLElement>(".sdk-diagnostics-card")?.scrollTop ?? 0;
+  render();
+  const card = root.querySelector<HTMLElement>(".sdk-diagnostics-card");
+  if (card) card.scrollTop = scrollTop;
+}
+
+async function runAllDiagnostics(): Promise<void> {
+  if (diagnosticRunning || diagnosticBatch) return;
+  const total = diagnostics.modules.reduce((count, module) => count + module.apis.length + 1, 0);
+  diagnosticBatch = { done: 0, total };
+  renderPreservingDiagnosticsScroll();
+  for (const module of diagnostics.modules) {
+    const moduleId = `module:${module.name}`;
+    if (module.apis.length === 0) {
+      diagnosticRunning = moduleId;
+      renderPreservingDiagnosticsScroll();
+      diagnosticResults[moduleId] = await diagnostics.run(moduleId);
+    } else {
+      let passed = 0;
+      let durationMs = 0;
+      for (const api of module.apis) {
+        diagnosticRunning = api.id;
+        renderPreservingDiagnosticsScroll();
+        const result = await diagnostics.run(api.id);
+        diagnosticResults[api.id] = result;
+        durationMs += result.durationMs;
+        if (result.status === "passed") passed += 1;
+        diagnosticBatch.done += 1;
+      }
+      diagnosticResults[moduleId] = {
+        status: passed === module.apis.length ? "passed" : "failed",
+        detail: format(copy.sdkBatchResult, { passed, total: module.apis.length }),
+        durationMs,
+      };
+    }
+    diagnosticBatch.done += 1;
+    diagnosticRunning = "";
+    renderPreservingDiagnosticsScroll();
+  }
+  diagnosticBatch = null;
+  renderPreservingDiagnosticsScroll();
+  root.querySelector<HTMLElement>("[data-action='test-all-diagnostics']")?.focus();
 }
 
 function bindTowerDrag(): void {

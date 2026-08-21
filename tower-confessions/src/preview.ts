@@ -21,7 +21,7 @@ frame.addEventListener("load", () => {
     modules: [...SDK_ENABLED_MODULES],
     init: {
       locale: new URLSearchParams(window.location.search).get("locale") === "zh-cn" ? "zh-cn" : "en",
-      grantedScopes: ["character.identity", "character.avatar", "character.card", "player_persona"],
+      grantedScopes: ["character.identity", "character.avatar", "character.card", "player_persona", "memory", "footprint"],
       context: {
         schemaVersion: 1,
         character: { id: "aster", displayName: "Aster", card: { description: "Warm, perceptive, and teasing.", tags: ["companion"] } },

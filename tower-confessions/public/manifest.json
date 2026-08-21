@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "version": "0.2.4",
+  "version": "0.2.5",
   "id": "tower-confessions",
   "status": "active",
   "capability": "game.social.truth-dare-tower",
@@ -10,7 +10,7 @@
   },
   "context": {
     "requiredScopes": ["character.identity"],
-    "optionalScopes": ["character.avatar", "character.card", "player_persona"]
+    "optionalScopes": ["character.avatar", "character.card", "player_persona", "memory", "footprint"]
   },
   "locales": {
     "en": {
